@@ -63,9 +63,20 @@ public class VMWrapper {
         return new String[0];
     }
 
+    private static final String[] symbolFileLocation = { "lib", "ct.sym" };
+
     public static Path findCtSym() {
         try {
             URL res = VMWrapper.class.getResource("/META-INF/services/com.sun.tools.javac.platform.PlatformProvider");
+            if (res == null) {
+                //runnning inside a JDK image, try to look for lib/ct.sym:
+                String javaHome = System.getProperty("java.home");
+                Path file = Paths.get(javaHome);
+                // file == ${jdk.home}
+                for (String name : symbolFileLocation)
+                    file = file.resolve(name);
+                return FileSystems.newFileSystem(file, (ClassLoader)null).getRootDirectories().iterator().next();
+            }
             URL jar = ((JarURLConnection)res.openConnection()).getJarFileURL();
             Path path = Paths.get(jar.toURI());
             FileSystem fs = FileSystems.newFileSystem(path, (ClassLoader) null);
