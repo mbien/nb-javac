@@ -145,6 +145,7 @@
             <fileset dir="${jdk.repo}/src/">
                 <include name="java.compiler/**"/>
                 <include name="jdk.compiler/**"/>
+                <include name="jdk.jdeps/share/classes/module-info.java"/>
                 <include name="jdk.jdeps/share/classes/com/sun/tools/classfile/**"/>
                 <include name="jdk.jdeps/share/classes/com/sun/tools/javap/**"/>
             </fileset>
@@ -169,7 +170,7 @@
         <exec executable="patch" dir="${root}">
             <arg value="-p1"/>
             <arg value="-i"/>
-            <arg value="${root}/backports/fix-extending"/>
+            <arg value="${root}/backports/JDK-8273584.diff"/>
         </exec>
         <echo file="${src.dir}/jackpot-done">Jackpot done!</echo>
     </target>
@@ -341,6 +342,7 @@
     <target name="-prepare-maven" depends="clean,jar,zip-nb-javac-sources">
         <fail message="Version must be specified!" unless="maven.version"></fail>
         <fail message="Specify -Dmaven.groupId=..." unless="maven.groupId"></fail>
+        <property name="mvn.exec" value="mvn"/>
 
         <zip basedir="../../../../" destfile="dist/nb-javac-${nb-javac-ver}-doc.zip">
             <include name="README.md"/>
@@ -364,7 +366,7 @@
             description="Build nb-javac and publish to Snapshot Repository of OSSRH"
             depends="-prepare-maven-snapshot-version,-prepare-maven">
         <property name="mvn.exec.output" location="build/maven-publish.log"/>
-        <exec executable="mvn" output="${mvn.exec.output}" resultproperty="mvn.exec.result" failonerror="false">
+        <exec executable="${mvn.exec}" output="${mvn.exec.output}" resultproperty="mvn.exec.result" failonerror="false">
             <arg value="org.apache.maven.plugins:maven-deploy-plugin:2.7:deploy-file"/>
             <arg value="-Durl=${maven-snapshots-repository-url}"/>
             <arg value="-DrepositoryId=${maven-snapshots-repository-id}"/>
@@ -387,7 +389,7 @@
             description="Build nb-javac and stage for maven central"
             depends="-prepare-maven-version,-prepare-maven">
 
-        <exec executable="mvn" output="build/maven-publish.log" failonerror="true">
+        <exec executable="${mvn.exec}" output="build/maven-publish.log" failonerror="true">
             <arg value="org.apache.maven.plugins:maven-gpg-plugin:1.4:sign-and-deploy-file"/>
             <arg value="-Durl=${maven-staging-repository-url}"/>
             <arg value="-DrepositoryId=${maven-staging-repository-id}"/>
