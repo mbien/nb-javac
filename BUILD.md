@@ -8,7 +8,7 @@ description of [advanced refactorings](https://netbeans.apache.org/jackpot/Hints
 Use:
 
 ```bash
-$ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac jar
+$ JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac jar
 ```
 
 to build everything at once. Read below to control individual steps of the build.
@@ -20,9 +20,9 @@ The build requires JDK repository in `jdk` subdirectory of the root of `nb-javac
 If such directory doesn't exist, the build checks out one:
 
 ```bash
-$ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac init \
-    -Djdk.git.url=https://github.com/openjdk/jdk16 \
-    -Djdk.git.commit=jdk-16+36
+$ JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac init \
+    -Djdk.git.url=https://github.com/openjdk/jdk17 \
+    -Djdk.git.commit=jdk-17+35
 ```
 
 If the `jdk` directory is present the build leaves its content untouched. E.g.
@@ -46,7 +46,7 @@ to them. This is done by executing the [jackpot](https://netbeans.apache.org/jac
 target:
 
 ```bash
-$ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac jackpot
+$ JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac jackpot
 ```
 
 This step copies the `javac` sources from the `jdk` subdirectory into a sibling
@@ -60,7 +60,7 @@ be edited manually. Rather than that edit the sources in the original
 the refactorings again execute:
 
 ```bash
-$ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac clean jackpot
+$ JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac clean jackpot
 ```
 
 ### The build
@@ -69,7 +69,7 @@ As described in [general documentation](README.md) use the following command to
 generate the final JAR files:
 
 ```bash
-$ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac clean jar
+$ JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac clean jar
 ```
 
 JARs `nb-javac-*-api.jar` and `nb-javac-*-impl.jar` are going to appear

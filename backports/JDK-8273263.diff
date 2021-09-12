@@ -1,0 +1,106 @@
+commit f17ee0c5c796951801c2026a2acac895a5c0af73
+Author: Jan Lahoda <jlahoda@openjdk.org>
+Date:   Fri Sep 3 09:29:45 2021 +0000
+
+    8273263: Incorrect recovery attribution of record component type when j.l.Record is unavailable
+    
+    Reviewed-by: vromero
+
+diff --git a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java
+index 1fa3d8e8bda..fefe29ae92d 100644
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java
+@@ -552,6 +552,16 @@ public class TypeEnter implements Completer {
+             return result;
+         }
+ 
++        /** Generate a base clause for a record type.
++         *  @param pos              The position for trees and diagnostics, if any
++         *  @param c                The class symbol of the record
++         */
++        protected  JCExpression recordBase(int pos, ClassSymbol c) {
++            JCExpression result = make.at(pos).
++                QualIdent(syms.recordType.tsym);
++            return result;
++        }
++
+         protected Type modelMissingTypes(Env<AttrContext> env, Type t, final JCExpression tree, final boolean interfaceExpected) {
+             if (!t.hasTag(ERROR))
+                 return t;
+@@ -694,7 +704,10 @@ public class TypeEnter implements Completer {
+                                   true, false, false)
+                 : (sym.fullname == names.java_lang_Object)
+                 ? Type.noType
+-                : sym.isRecord() ? syms.recordType : syms.objectType;
++                : sym.isRecord()
++                ? attr.attribBase(recordBase(tree.pos, sym), baseEnv,
++                                  true, false, false)
++                : syms.objectType;
+             }
+             ct.supertype_field = modelMissingTypes(baseEnv, supertype, extending, false);
+ 
+diff --git a/test/langtools/tools/javac/api/TestGetElementReference.java b/test/langtools/tools/javac/api/TestGetElementReference.java
+index 6daadd66813..7eb8cd02381 100644
+--- a/test/langtools/tools/javac/api/TestGetElementReference.java
++++ b/test/langtools/tools/javac/api/TestGetElementReference.java
+@@ -58,9 +58,14 @@ public class TestGetElementReference {
+         analyze(false, "TestGetElementReferenceData.java");
+         analyze(false, "mod/module-info.java", "mod/api/pkg/Api.java");
+         analyze(true, "TestGetElementReferenceDataWithErrors.java");
++        analyze(true, new String[] {"--release", "8", "-XDshould-stop.at=FLOW"}, "TestGetElementReferenceDataWithRecord.java");
+     }
+ 
+     private static void analyze(boolean allowErrors, String... fileNames) throws IOException {
++        analyze(allowErrors, new String[0], fileNames);
++    }
++
++    private static void analyze(boolean allowErrors, String[] extraParams, String... fileNames) throws IOException {
+         try (StandardJavaFileManager fm = ToolProvider.getSystemJavaCompiler().getStandardFileManager(null, null, null)) {
+             List<JavaFileObject> files = new ArrayList<>();
+             for (String fileName : fileNames) {
+@@ -70,7 +75,9 @@ public class TestGetElementReference {
+                 }
+             }
+             DiagnosticCollector<JavaFileObject> diagnostics = new DiagnosticCollector<>();
+-            List<String> options = List.of("-Xjcov");
++            List<String> options = new ArrayList<>();
++            options.add("-Xjcov");
++            options.addAll(List.of(extraParams));
+             JavacTask ct = (JavacTask) ToolProvider.getSystemJavaCompiler().getTask(null, null, diagnostics, options, null, files);
+             Trees trees = Trees.instance(ct);
+             CompilationUnitTree cut = ct.parse().iterator().next();
+diff --git a/test/langtools/tools/javac/api/TestGetElementReferenceDataWithRecord.java b/test/langtools/tools/javac/api/TestGetElementReferenceDataWithRecord.java
+new file mode 100644
+index 00000000000..13fed98d8d0
+--- /dev/null
++++ b/test/langtools/tools/javac/api/TestGetElementReferenceDataWithRecord.java
+@@ -0,0 +1,29 @@
++/*
++ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
++ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
++ *
++ * This code is free software; you can redistribute it and/or modify it
++ * under the terms of the GNU General Public License version 2 only, as
++ * published by the Free Software Foundation.
++ *
++ * This code is distributed in the hope that it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++ * version 2 for more details (a copy is included in the LICENSE file that
++ * accompanied this code).
++ *
++ * You should have received a copy of the GNU General Public License version
++ * 2 along with this work; if not, write to the Free Software Foundation,
++ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
++ *
++ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
++ * or visit www.oracle.com if you need additional information or have any
++ * questions.
++ */
++
++package test;
++
++public record TestGetElementReferenceDataWithRecord(String/*getElement:CLASS:java.lang.String*/ s1,
++                                                    String/*getElement:CLASS:java.lang.String*/ s2) implements I {}
++
++interface I {}

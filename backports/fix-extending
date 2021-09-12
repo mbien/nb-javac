@@ -1,0 +1,13 @@
+diff --git a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java
+index fefe29ae9..ae1edf665 100644
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/TypeEnter.java
+@@ -705,7 +705,7 @@ public class TypeEnter implements Completer {
+                 : (sym.fullname == names.java_lang_Object)
+                 ? Type.noType
+                 : sym.isRecord()
+-                ? attr.attribBase(recordBase(tree.pos, sym), baseEnv,
++                ? attr.attribBase(extending = recordBase(tree.pos, sym), baseEnv,
+                                   true, false, false)
+                 : syms.objectType;
+             }

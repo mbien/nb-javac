@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,24 +20,10 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package nbjavac;
 
-import static java.util.Objects.requireNonNull;
+package test;
 
-public class ObjectsWrapper {
+public record TestGetElementReferenceDataWithRecord(String/*getElement:CLASS:java.lang.String*/ s1,
+                                                    String/*getElement:CLASS:java.lang.String*/ s2) implements I {}
 
-    public static <T> T requireNonNullElse(T value, T elseValue) {
-        if (value != null) {
-            return value;
-        }
-        requireNonNull(elseValue, "elseValue");
-        return elseValue;
-    }
-
-    public static int checkFromIndexSize(int fromIndex, int size, int length) {
-        if ((length | fromIndex | size) < 0 || size > length - fromIndex)
-            throw new IndexOutOfBoundsException("" + fromIndex + ", " + size + ", " + length);
-        return fromIndex;
-    }
-}
-
+interface I {}

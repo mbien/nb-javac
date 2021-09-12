@@ -33,7 +33,8 @@ java.lang.Runtime.version().feature() =>
 ;;
 
 
-@jdk.internal.PreviewFeature($args$) => ;;
+@jdk.internal.javac.PreviewFeature($args$) => ;;
+@jdk.internal.javac.NoPreview => ;;
 @java.lang.Deprecated($arg1, $args$) => @java.lang.Deprecated;;
 
 
@@ -98,6 +99,11 @@ $1.isEmpty() :: $1 instanceof java.util.Optional
 java.util.Objects.requireNonNullElse($obj, $def)
 =>
 nbjavac.ObjectsWrapper.requireNonNullElse($obj, $def)
+;;
+
+java.util.Objects.checkFromIndexSize($from, $size, $len)
+=>
+nbjavac.ObjectsWrapper.checkFromIndexSize($from, $size, $len)
 ;;
 
 java.util.ServiceLoader :: inClass("com.sun.tools.doclint.DocLint")
@@ -221,3 +227,19 @@ java.nio.file.Files.newDirectoryStream($a1)
 nbjavac.VMWrapper.newDirectoryStream($a1)
 ;;
 
+$1.toList() :: $1 instanceof java.util.stream.Stream
+=>
+$1.collect(java.util.stream.Collectors.toList())
+;;
+
+//to eliminate imports:
+jdk.internal.javac.PreviewFeature
+=>
+java.lang.VirtualMachineError
+;;
+
+//to eliminate imports:
+jdk.internal.javac.NoPreview
+=>
+java.lang.VirtualMachineError
+;;
