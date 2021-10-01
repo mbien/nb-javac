@@ -343,6 +343,7 @@
         <fail message="Version must be specified!" unless="maven.version"></fail>
         <fail message="Specify -Dmaven.groupId=..." unless="maven.groupId"></fail>
         <property name="mvn.exec" value="mvn"/>
+        <property name="mvn.exec.args" value="-Dignore=true"/>
 
         <zip basedir="../../../../" destfile="dist/nb-javac-${nb-javac-ver}-doc.zip">
             <include name="README.md"/>
@@ -375,6 +376,8 @@
             <arg value="-Dfiles=dist/nb-javac-${nb-javac-ver}-api.jar,dist/nb-javac-${nb-javac-ver}-sources.zip,dist/nb-javac-${nb-javac-ver}-doc.zip"/>
             <arg value="-Dtypes=jar,jar,jar" />
             <arg value="-Dclassifiers=api,sources,javadoc" />
+            <arg value="-Dgpg.useagent=true"/>
+            <arg line="${mvn.exec.args}" />
         </exec>
         <fail message="Publishing to Maven failed with exec code ${mvn.exec.result}, see log at ${mvn.exec.output}">
             <condition>
@@ -399,6 +402,7 @@
             <arg value="-Dtypes=jar,jar,jar" />
             <arg value="-Dclassifiers=api,sources,javadoc" />
             <arg value="-Dgpg.useagent=true"/>
+            <arg line="${mvn.exec.args}" />
         </exec>
     </target>
 </project>
