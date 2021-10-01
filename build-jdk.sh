@@ -78,4 +78,4 @@ $JAVA_HOME17/bin/jmod create --class-path build/test/out/jdk.compiler/ --cmds bu
 $JAVA_HOME17/bin/jmod create --class-path build/test/out/jdk.jdeps/ --cmds build/test/expanded/jdk.jdeps/bin/ --legal-notice build/test/expanded/jdk.jdeps/legal/ --man-pages build/test/expanded/jdk.jdeps/man/ --module-version 17 build/test/modules/jdk.jdeps.jmod
 
 #build image:
-$JAVA_HOME17/bin/jlink -p build/test/modules --add-modules ALL-MODULE-PATH --output build/test/jdk
+$JAVA_HOME17/bin/jlink -p build/test/modules:$JAVA_HOME17/jmods/ --add-modules ALL-MODULE-PATH --output build/test/jdk

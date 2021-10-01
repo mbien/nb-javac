@@ -44,7 +44,11 @@ public class ModuleWrapper {
     }
 
     public String getName() {
-        return "jdk.compiler"; //XXX
+        switch (clazz.getName()) {
+            case "jdk.javadoc.internal.api.JavadocTool": return "jdk.javadoc";
+            case "com.sun.tools.javac.api.JavacTool": return "jdk.compiler";
+            default: return "jdk.compiler"; //XXX
+        }
     }
 
     public boolean isNamed() {
