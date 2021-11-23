@@ -8,7 +8,7 @@ such as syntax coloring, code completion.
 # Prerequisite
   - Git
   - Ant 1.9.9 or above
-  - JDK 14 to build
+  - JDK 17 to build
   - JDK 8 to test
   - Apache Maven to publish to Maven central
 
@@ -33,7 +33,7 @@ $ git checkout <release_tag_name>
 ### Run the below command to build nb-javac.
 
 ```bash
-$ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac clean jar
+$ JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac clean jar
 ```
 
 Two jars namely `nb-javac-*-api.jar` and `nb-javac-*-impl.jar` are going to appear
@@ -46,7 +46,7 @@ $ JAVA_HOME=/jdk-8/ ant -f ./make/langtools/netbeans/nb-javac test
 ### Generate ZIP with the source code of nb-javac
 
 ```bash
-$ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac zip-nb-javac-sources
+$ JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac zip-nb-javac-sources
 ```
 
 # Publishing to maven central / OSSRH
@@ -59,13 +59,13 @@ $ JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac zip-nb-javac-sour
 
 3. Run
    ```
-   JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac publish-to-ossrh-snapshots -Dmaven.groupId=your.grp.id
+   JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac publish-to-ossrh-snapshots -Dmaven.groupId=your.grp.id
    ```
    to publish snapshot artifacts (https://oss.sonatype.org/content/repositories/snapshots/)
 
 4. Run
    ```
-   JAVA_HOME=/jdk-14/ ant -f ./make/langtools/netbeans/nb-javac publish-to-maven-central -Dmaven.groupId=your.grp.id
+   JAVA_HOME=/jdk-17/ ant -f ./make/langtools/netbeans/nb-javac publish-to-maven-central -Dmaven.groupId=your.grp.id
    ```
    to stage the release, which will get promoted to maven central, after it has
    been manually released.
@@ -91,7 +91,6 @@ touch netbeans/nbbuild/testuserdir/.lastmodified
 
 - https://cwiki.apache.org/confluence/display/NETBEANS/Overview%3A+nb-javac
 - https://cwiki.apache.org/confluence/display/NETBEANS/Release+Schedule
-- https://confluence.oraclecorp.com/confluence/display/NB/nb-javac+JDK14+uptake
 - https://wiki.se.oracle.com/display/JPG/Behavior+without+NB-Javac
 
 # Help
