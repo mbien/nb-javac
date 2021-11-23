@@ -22,9 +22,9 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:https://github.com/oracle/nb-javac.git</connection>
-    <developerConnection>scm:git:git@github.com:oracle/nb-javac.git</developerConnection>
-    <url>https://github.com/oracle/nb-javac</url>
+    <connection>scm:git:https://github.com/jaroslavtulach/nb-javac.git</connection>
+    <developerConnection>scm:git:git@github.com:jaroslavtulach/nb-javac.git</developerConnection>
+    <url>https://github.com/jaroslavtulach/nb-javac</url>
   </scm>
 
   <developers>
