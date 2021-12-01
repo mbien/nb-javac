@@ -113,7 +113,7 @@
         <available file="../../../../../nbbuild/netbeans/java/modules/ext" type="dir" property="modules.ext.exists"/>
     </target>
 
-    <target name="propertiesparser" depends="init">
+    <target name="propertiesparser" depends="jackpot">
         <mkdir dir="${root}/lib/propertiesparser"/>
         <javac destdir="${root}/lib/propertiesparser" source="1.8" target="1.8" release="8" debug="true" srcdir="${jdk.repo}/make/langtools/tools/">
             <include name="propertiesparser/**/*.java"/>
@@ -124,13 +124,13 @@
         </path>
         <java failonerror="true" classpathref="propertiesparser" classname="propertiesparser.PropertiesParser">
             <arg value="-compile"/>
-            <arg value="${jdk.repo}/src/jdk.compiler/share/classes/com/sun/tools/javac/resources/compiler.properties"/>
-            <arg value="${jdk.repo}/src/jdk.compiler/share/classes/com/sun/tools/javac/resources/"/>
+            <arg value="${src.dir}/jdk.compiler/share/classes/com/sun/tools/javac/resources/compiler.properties"/>
+            <arg value="${src.dir}/jdk.compiler/share/classes/com/sun/tools/javac/resources/"/>
         </java>
         <java failonerror="true" classpathref="propertiesparser" classname="propertiesparser.PropertiesParser">
             <arg value="-compile"/>
-            <arg value="${jdk.repo}/src/jdk.compiler/share/classes/com/sun/tools/javac/resources/launcher.properties"/>
-            <arg value="${jdk.repo}/src/jdk.compiler/share/classes/com/sun/tools/javac/resources/"/>
+            <arg value="${src.dir}/jdk.compiler/share/classes/com/sun/tools/javac/resources/launcher.properties"/>
+            <arg value="${src.dir}/jdk.compiler/share/classes/com/sun/tools/javac/resources/"/>
         </java>
     </target>
 
@@ -143,11 +143,18 @@
         <mkdir dir="${src.dir}"/>
         <copy todir="${src.dir}">
             <fileset dir="${jdk.repo}/src/">
-                <include name="java.compiler/**"/>
-                <include name="jdk.compiler/**"/>
-                <include name="jdk.jdeps/share/classes/module-info.java"/>
-                <include name="jdk.jdeps/share/classes/com/sun/tools/classfile/**"/>
-                <include name="jdk.jdeps/share/classes/com/sun/tools/javap/**"/>
+                <selector>
+                    <and>
+                        <or>
+                            <filename name="java.compiler/**"/>
+                            <filename name="jdk.compiler/**"/>
+                            <filename name="jdk.jdeps/share/classes/module-info.java"/>
+                            <filename name="jdk.jdeps/share/classes/com/sun/tools/classfile/**"/>
+                            <filename name="jdk.jdeps/share/classes/com/sun/tools/javap/**"/>
+                        </or>
+                        <containsregexp expression="particular *file *as *subject *to *the.*Classpath.*exception"/>
+                    </and>
+                </selector>
             </fileset>
         </copy>
         <java fork="true" failonerror="true" classpath="${tools.dir}/jackpot.jar" classname="org.netbeans.modules.jackpot30.cmdline.Main">
