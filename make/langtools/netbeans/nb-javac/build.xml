@@ -162,16 +162,6 @@
             <arg value="${src.dir}/jdk.compiler/share/classes"/>
             <arg value="${src.dir}/jdk.jdeps/share/classes"/>
         </java>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8273263.diff"/>
-        </exec>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8273584.diff"/>
-        </exec>
         <echo file="${src.dir}/jackpot-done">Jackpot done!</echo>
     </target>
 
