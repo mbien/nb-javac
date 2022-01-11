@@ -239,9 +239,22 @@
 
     <!-- suppress javadoc generation for this library, as its wrappers do it -->
     <target name="-javadoc-build"/>
-
+    
     <target name="-separate-jars" depends="init">
+        <copy  file="${build.classes.dir}/javax/lang/model/SourceVersion.class"
+               tofile="${build.classes.dir}/META-INF/versions/11/javax/lang/model/SourceVersion.class"
+               encoding="ISO-8859-1"
+               outputencoding="ISO-8859-1"
+        >
+            <filterchain>
+                 <replacestring from="nbjavac/RuntimeWR$Version" to="java/lang/Runtime$Version"/>
+            </filterchain>
+        </copy>
+
         <jar destfile="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar">
+            <manifest>
+                <attribute name="Multi-Release" value="true"/>
+            </manifest>
             <fileset dir="${build.classes.dir}">
                <!-- <include name="com/sun/javadoc/**/*"/> -->
                 <include name="com/sun/source/**/*"/>
@@ -249,6 +262,7 @@
                 <include name="javax/tools/*"/>
                 <include name="jdk/internal/PreviewFeature*"/>
                 <include name="javax/annotation/**/*"/>
+                <include name="META-INF/versions/**"/>
             </fileset>
             <fileset dir="${nb.javac.dir}">
                     <include name="README.md"/>
