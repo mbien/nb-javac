@@ -143,6 +143,8 @@ nbjavac.StringWrapper.isBlank($1)
 
 jdk.internal.misc.VM => nbjavac.VMWrapper;;
 
+java.lang.ClassLoader.getSystemClassLoader() => javax.tools.ToolProvider.class.getClassLoader();;
+
 //TODO: workaround for the NetBeans' approach to javac loading using two different ClassLoaders:
 public static com.sun.source.util.JavacTask instance(javax.annotation.processing.ProcessingEnvironment processingEnvironment) {$whatever$;}
 =>
