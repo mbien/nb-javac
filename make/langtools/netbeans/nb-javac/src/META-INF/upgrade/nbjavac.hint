@@ -73,6 +73,8 @@ $cl.getUnnamedModule() :: $cl instanceof java.lang.ClassLoader
 nbjavac.ModuleWrapper.getUnnamedModule($cl)
 ;;
 
+java.lang.Runtime.Version => nbjavac.RuntimeWR.Version;;
+
 java.lang.Module => nbjavac.ModuleWrapper;;
 
 java.lang.module.ModuleFinder => nbjavac.ModuleWrapper.ModuleFinder;;

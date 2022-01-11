@@ -22,10 +22,13 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package java.lang;
+package nbjavac;
 
-public final class Runtime {
-    private Runtime() {
+import java.lang.IllegalStateException;
+import java.lang.String;
+
+public final class RuntimeWR {
+    private RuntimeWR() {
     }
 
     public static final class Version {
@@ -36,7 +39,7 @@ public final class Runtime {
             return 8;
         }
 
-        public static Runtime.Version parse(String v) {
+        public static RuntimeWR.Version parse(String v) {
             throw new IllegalStateException();
         }
     }
