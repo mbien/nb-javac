@@ -104,7 +104,7 @@
         <mkdir dir="build/lib"/>
         <mkdir dir="${tools.dir}"/>
         <get dest="${tools.dir}/jackpot.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/12.5/tool-12.5.jar"/>
-        <get dest="${tools.dir}/compiler.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/frgaal/compiler/16.0.1/compiler-16.0.1.jar"></get>
+        <get dest="${tools.dir}/compiler.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/frgaal/compiler/17.0.0/compiler-17.0.0.jar"></get>
         <get dest="build/lib/junit-4.12.jar" skipexisting="true" src="https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar"></get>
         <get dest="build/lib/hamcrest-core-1.3.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar"></get>
     </target>
@@ -169,16 +169,6 @@
             <arg value="${src.dir}/jdk.compiler/share/classes"/>
             <arg value="${src.dir}/jdk.jdeps/share/classes"/>
         </java>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8273263.diff"/>
-        </exec>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8273584.diff"/>
-        </exec>
         <echo file="${src.dir}/jackpot-done">Jackpot done!</echo>
     </target>
 
@@ -240,7 +230,7 @@
                     <arg value="--target"/>
                     <arg value="1.8"/>
                     <arg value="--source"/>
-                    <arg value="16"/>
+                    <arg value="17"/>
                     <arg line="${zdr.@{destdir}.list}"/>
                 </exec>
             </sequential>
@@ -249,9 +239,21 @@
 
     <!-- suppress javadoc generation for this library, as its wrappers do it -->
     <target name="-javadoc-build"/>
-
+    
     <target name="-separate-jars" depends="init">
+        <copy  file="${build.classes.dir}/javax/lang/model/SourceVersion.class"
+               tofile="${build.classes.dir}/META-INF/versions/11/javax/lang/model/SourceVersion.class"
+               encoding="ISO-8859-1"
+               outputencoding="ISO-8859-1"
+        >
+            <filterchain>
+                 <replacestring from="nbjavac/RuntimeWR$Version" to="java/lang/Runtime$Version"/>
+            </filterchain>
+        </copy>
         <jar destfile="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar">
+            <manifest>
+                <attribute name="Multi-Release" value="true"/>
+            </manifest>
             <fileset dir="${build.classes.dir}">
                <!-- <include name="com/sun/javadoc/**/*"/> -->
                 <include name="com/sun/source/**/*"/>
@@ -259,6 +261,7 @@
                 <include name="javax/tools/*"/>
                 <include name="jdk/internal/PreviewFeature*"/>
                 <include name="javax/annotation/**/*"/>
+                <include name="META-INF/versions/**"/>
             </fileset>
             <fileset dir="${nb.javac.dir}">
                     <include name="README.md"/>
@@ -272,7 +275,6 @@
                 <include name="com/sun/tools/**/*"/>
 		<include name="jdk/internal/shellsupport/**/*"/>
                 <include name="jdk/internal/PreviewFeature*"/>
-                <include name="java/lang/**/*"/>
                 <include name="nbjavac/**"/>
             </fileset>
             <zipfileset src="${tools.dir}/compiler.jar" includes="META-INF/ct*/**"/>
@@ -284,13 +286,47 @@
         </jar>
         <delete file="${dist.jar}"/>
     </target>
+    
+    <available file="${java.home}/bin/javap" property="javap.exe" value="${java.home}/bin/javap"/>
+    <available file="${java.home}/bin/javap.exe" property="javap.exe" value="${java.home}/bin/javap.exe"/>
+    <target name="-verify-source-version-classes" depends="-separate-jars" if="javap.exe">
+        <exec executable="${javap.exe}" failonerror="true" outputproperty="javap.SourceVersion.old">
+            <arg value="-bootclasspath"></arg>
+            <arg value="ignore"></arg>
+            <arg value="-cp"></arg>
+            <arg value="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar"></arg>
+            <arg value="javax.lang.model.SourceVersion"/>
+        </exec>
+        <exec executable="${javap.exe}" failonerror="true" outputproperty="javap.SourceVersion.new">
+            <arg value="-bootclasspath"></arg>
+            <arg value="ignore"></arg>
+            <arg value="--multi-release"></arg>
+            <arg value="17"></arg>
+            <arg value="-cp"></arg>
+            <arg value="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar"></arg>
+            <arg value="javax.lang.model.SourceVersion"/>
+        </exec>
+        <fail message="Patched version of SourceVersion should be different!">
+            <condition>
+                <equals arg1="${javap.SourceVersion.old}" arg2="${javap.SourceVersion.new}"/>
+            </condition>
+        </fail>
+        <fail message="Patched version of SourceVersion shall contain Runtime.Version: ${javap.SourceVersion.new}">
+            <condition>
+                <not>
+                    <contains string="${javap.SourceVersion.new}" substring="java.lang.Runtime$Version"/>
+                </not>
+            </condition>
+        </fail>
+        <echo message="JDK8 and JDK11 versions of javax.lang.model.SourceVersion verified successfully"/>
+    </target>
 
     <target name="-copy-jars-to-build" if="modules.ext.exists">
         <copy file="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar" tofile="../../../../../nbbuild/netbeans/java/modules/ext/nb-javac-api.jar" />
         <copy file="${dist.dir}/nb-javac-${nb-javac-ver}-impl.jar" tofile="../../../../../nbbuild/netbeans/java/modules/ext/nb-javac-impl.jar" />
         <touch file="../../../../../nbbuild/netbeans/java/.lastModified" />
     </target>
-    <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
+    <target name="-post-jar" depends="-post-init,-separate-jars,-verify-source-version-classes,-copy-jars-to-build">
     </target>
 
     <target name="-pre-compile-test" depends="jar"/>
