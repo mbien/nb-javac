@@ -111,7 +111,7 @@ public class MethodInvocationAttributionTest extends TestCase {
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         Iterable<? extends CompilationUnitTree> trees = ct.parse();
 

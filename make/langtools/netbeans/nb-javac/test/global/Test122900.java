@@ -59,7 +59,7 @@ public class Test122900 extends TestCase {
         assert tool != null;
 
         String code = "package test; public class Test{}";
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
         ct.getElements().getTypeElement("java.lang.Object.abc.xyz");
     }

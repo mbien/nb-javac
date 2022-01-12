@@ -86,7 +86,7 @@ public class ScopeTest extends TestCase {
                       "    }\n" +
                       "}\n";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         Iterable<? extends CompilationUnitTree> trees = ct.parse();
 
@@ -126,7 +126,7 @@ public class ScopeTest extends TestCase {
                       "    public Unresolved field;" +
                       "}\n";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.parse();
         ct.analyze();
 
@@ -156,7 +156,7 @@ public class ScopeTest extends TestCase {
                        "    };\n" +
                       "}\n";
 
-        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 	Iterable<? extends CompilationUnitTree> cut = ct.parse();
         ct.analyze();
 

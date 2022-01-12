@@ -66,7 +66,7 @@ public class DuplicateClassTest extends TestCase {
 
         String code = "package test; public class Test { public static class T{} public static class T{} }";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshould-stop.at=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov", "-XDshould-stop.at=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
 
         assertEquals("test.Test", ((TypeElement) ct.analyze().iterator().next()).getQualifiedName().toString());
     }

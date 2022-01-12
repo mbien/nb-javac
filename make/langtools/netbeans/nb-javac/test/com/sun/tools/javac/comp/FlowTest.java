@@ -73,7 +73,7 @@ public class FlowTest extends TestCase {
 
         String code = "package test; public class Test {public void test() {java.util.List<String> l = null;for (String s : !l.isEmpty()) {}}}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }
@@ -86,7 +86,7 @@ public class FlowTest extends TestCase {
 
         String code = "package test; public class Test {private void test(final int x) {int x = 0; int y = x;}}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }
@@ -105,7 +105,7 @@ public class FlowTest extends TestCase {
 //                      "}";
 //
 //        DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 //        CompilationUnitTree cut = ct.parse().iterator().next();
 //        
 //        ct.analyze();
@@ -142,7 +142,7 @@ public class FlowTest extends TestCase {
 //                      "}";
 //
 //        DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 //        CompilationUnitTree cut = ct.parse().iterator().next();
 //
 //        ct.analyze();
@@ -181,7 +181,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -197,7 +197,7 @@ public class FlowTest extends TestCase {
 
         String code = "package test; public class Test { { try (InputStream in = new FileInputStream(\"\")) {} }}";
 
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         assertNotNull("Must run on JDK7 with ARM", ct.getElements().getTypeElement("java.lang.AutoCloseable"));
         ct.analyze();
@@ -217,7 +217,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, global.Utils.asParameters("-source", version, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();
@@ -239,7 +239,7 @@ public class FlowTest extends TestCase {
                       "}";
 
         DiagnosticCollector<JavaFileObject> c = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, c, global.Utils.asParameters("-source", version, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();

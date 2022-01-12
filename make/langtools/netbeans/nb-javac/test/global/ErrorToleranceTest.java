@@ -515,7 +515,7 @@ public class ErrorToleranceTest extends TestCase {
 //        std.setLocation(StandardLocation.CLASS_OUTPUT, Collections.singleton(workingDir));
 //        
 //        List<String> compilerOptions = new ArrayList<String>();
-//        compilerOptions.addAll(Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=GENERATE", "-XDbackgroundCompilation"));
+//        compilerOptions.addAll(global.Utils.asParameters("-Xjcov", "-XDshouldStopPolicy=GENERATE", "-XDbackgroundCompilation"));
 //        if (apToRun != null) {
 //            URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
 //            File sourceOutput = new File(workingDir, "sourceOutput");

@@ -124,7 +124,7 @@ public class DocCommentParserTest extends TestCase {
 
         final String code = "package test; /** " + javadocCode + " */public class Test {}";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDkeepComments=true", "-XDbreakDocCommentParsingOnError=false"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov", "-XDkeepComments=true", "-XDbreakDocCommentParsingOnError=false"), null, Arrays.asList(new MyFileObject(code)));
         final CompilationUnitTree cut = ct.parse().iterator().next();
         DocTrees trees = DocTrees.instance(ct);
         final DocSourcePositions pos = trees.getSourcePositions();

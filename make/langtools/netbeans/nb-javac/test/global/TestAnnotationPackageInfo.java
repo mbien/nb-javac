@@ -65,7 +65,7 @@ public class TestAnnotationPackageInfo extends TestCase {
                                 "}\n";
         String codePackageInfo = "@Test package test;";
         DiagnosticCollector<JavaFileObject> coll = new DiagnosticCollector<JavaFileObject>();
-        JavacTask ct = (JavacTask)tool.getTask(null, null, coll, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("test/Test.java", codeAnnotation), new MyFileObject("test/package-info.java", codePackageInfo)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, coll, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject("test/Test.java", codeAnnotation), new MyFileObject("test/package-info.java", codePackageInfo)));
         ct.analyze();
 
         for (Diagnostic<? extends JavaFileObject> d : coll.getDiagnostics()) {
@@ -85,7 +85,7 @@ public class TestAnnotationPackageInfo extends TestCase {
         String codeAnnotationFoo = "package test; @Bar @java.lang.annotation.Target(java.lang.annotation.ElementType.CLASS) public @interface Foo {}\n";
         String codeAnnotationBar = "package test; @Foo @java.lang.annotation.Target(java.lang.annotation.ElementType.CLASS) public @interface Bar {}\n";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject("test/Foo.java", codeAnnotationFoo), new MyFileObject("test/Bar.java", codeAnnotationBar)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject("test/Foo.java", codeAnnotationFoo), new MyFileObject("test/Bar.java", codeAnnotationBar)));
         ct.analyze();
     }
 }

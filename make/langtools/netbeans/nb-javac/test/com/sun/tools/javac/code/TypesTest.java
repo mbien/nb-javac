@@ -32,6 +32,7 @@ import com.sun.source.util.JavacTask;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.tools.javac.code.Type.ClassType;
+import static global.Utils.asParameters;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -68,34 +69,31 @@ public class TypesTest extends TestCase {
     }
 
     public void test120841() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         String code = "import java.util.ArrayList; public class Test { private void test() {new ArrayList(1) {};}}";
-        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", version), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, asParameters("-source", version), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }
 
     public void test120543() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         String code = "class Test { <T1 extends B<?>, T2 extends T1> Object a(T2 c) { return c.b(); } } interface B<T3>{ T3 b(); }";
-        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", version), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, asParameters("-source", version), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }
 
     public void BROKENtest126218() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         String code = "class Test {}";
-        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", version), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, asParameters("-source", version), null, Arrays.asList(new MyFileObject(code)));
         final CompilationUnitTree tree = ct.parse().iterator().next();
         ct.analyze();
         new TreePathScanner() {
@@ -113,22 +111,20 @@ public class TypesTest extends TestCase {
     }
     
     public void testDuplicateTest() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         String code = "class Test { abstract void t(); }";
-        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", version, "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code), new MyFileObject(code)));
+        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, asParameters("-source", version, "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code), new MyFileObject(code)));
         ct.analyze();
     }
     
     public void testTypeVarBOT() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
         String code = "import java.util.Comparator; public class Test<E> { public static <T extends Comparable<? super T>> Comparator<T> naturalOrder() { return null; } public void t() { Object o = (Comparator<? super E>) naturalOrder(); } }";
-        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-source", version, "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code), new MyFileObject(code)));
+        final JavacTask ct = (JavacTask) tool.getTask(null, null, null, asParameters("-source", version, "-XDshouldStopPolicy=GENERATE"), null, Arrays.asList(new MyFileObject(code), new MyFileObject(code)));
         ct.analyze();
     }
 

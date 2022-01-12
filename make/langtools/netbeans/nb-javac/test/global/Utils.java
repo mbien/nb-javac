@@ -22,49 +22,24 @@
  * CA 95054 USA or visit www.sun.com if you need additional information or
  * have any questions.
  */
-
 package global;
 
-import com.sun.source.util.JavacTask;
-import java.io.IOException;
-import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
-import javax.tools.JavaCompiler;
-import javax.tools.JavaFileObject;
-import javax.tools.SimpleJavaFileObject;
-import javax.tools.ToolProvider;
-import junit.framework.TestCase;
+import java.util.List;
 
-public class Test144555 extends TestCase {
-
-    public Test144555(String name) {
-        super(name);
+public class Utils {
+    private Utils() {
     }
 
-    static class MyFileObject extends SimpleJavaFileObject {
-        private String text;
-        public MyFileObject(String text) {
-            super(URI.create("myfo:/Test.java"), JavaFileObject.Kind.SOURCE);
-            this.text = text;
-        }
-        @Override
-        public CharSequence getCharContent(boolean ignoreEncodingErrors) {
-            return text;
-        }
-    }
-
-    public void test144555() throws IOException {
+    public static List<String> asParameters(String... params) {
         final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
-        final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
-        assert tool != null;
-
-        String code = "package test; public class Test {\n" +
-                      "    public Test() {\n" +
-                      "        super();\n" +
-                      "	       this((JTable)x);\n" +
-                      "    }\n" +
-                      "}\n";
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
-        ct.analyze();
+        List<String> arr = new ArrayList<>();
+        if (bootPath != null) {
+            arr.add("-bootclasspath");
+            arr.add(bootPath);
+        }
+        arr.addAll(Arrays.asList(params));
+        return arr;
     }
 }

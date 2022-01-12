@@ -25,6 +25,7 @@
 package com.sun.tools.javac.code;
 
 import com.sun.source.util.JavacTask;
+import static global.Utils.asParameters;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
@@ -60,7 +61,6 @@ public class LintTest extends TestCase {
     }
     
     public void test126218() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         String code = "class Test {java.util.List l;}";
         final AtomicInteger count = new AtomicInteger();
         DiagnosticListener<JavaFileObject> dl = new DiagnosticListener<JavaFileObject>() {
@@ -72,14 +72,14 @@ public class LintTest extends TestCase {
         };
         final JavaCompiler tool18 = ToolProvider.getSystemJavaCompiler();
         assert tool18 != null;
-        final JavacTask ct18 = (JavacTask) tool18.getTask(null, null, dl, Arrays.asList("-bootclasspath", bootPath, "-Xlint:rawtypes", "-source", "1.8", "-XDide"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct18 = (JavacTask) tool18.getTask(null, null, dl, asParameters("-Xlint:rawtypes", "-source", "1.8", "-XDide"), null, Arrays.asList(new MyFileObject(code)));
         ct18.analyze();
         assertEquals(1, count.get());
         count.set(0);
 
         final JavaCompiler tool13 = ToolProvider.getSystemJavaCompiler();
         assert tool13 != null;
-        final JavacTask ct13 = (JavacTask) tool13.getTask(null, null, dl, Arrays.asList("-bootclasspath", bootPath, "-Xlint:rawtypes", "-source", "1.3", "-XDide"), null, Arrays.asList(new MyFileObject(code)));
+        final JavacTask ct13 = (JavacTask) tool13.getTask(null, null, dl, asParameters("-Xlint:rawtypes", "-source", "1.3", "-XDide"), null, Arrays.asList(new MyFileObject(code)));
         ct13.analyze();
         assertEquals(0, count.get());
     }

@@ -75,7 +75,7 @@ public class AP208917Test extends AbstractProcessor {
 
         DiagnosticCollector<JavaFileObject> diagnostic = new DiagnosticCollector<JavaFileObject>();
         List<String> options = new LinkedList<String>();
-        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.8", "-classpath", System.getProperty("java.class.path")));
+        options.addAll(global.Utils.asParameters("-source", "1.8", "-classpath", System.getProperty("java.class.path")));
         options.addAll(Arrays.asList("-processor", AP208917Test.class.getName()));
         JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, options, null, Arrays.asList(new MyFileObject("class Test {}")));
         ct.analyze();

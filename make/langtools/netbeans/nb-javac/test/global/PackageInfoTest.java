@@ -77,7 +77,7 @@ public class PackageInfoTest extends TestCase {
 
         assertNotNull(jfo);
         
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null,fm, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(jfo));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null,fm, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(jfo));
 
         Iterable<? extends CompilationUnitTree> trees = ct.parse();
         Iterable<? extends Element> types = ct.enter(trees);

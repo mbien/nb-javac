@@ -64,7 +64,7 @@ public class Test116436 extends TestCase {
 
         String code = "package test; public class Test<S> { <T extends S & Runnable> void test() {} }";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }
@@ -76,7 +76,7 @@ public class Test116436 extends TestCase {
 
         String code = "package test; public class Test { <D, T extends Runnable & D> void f() {} }";
 
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
     }

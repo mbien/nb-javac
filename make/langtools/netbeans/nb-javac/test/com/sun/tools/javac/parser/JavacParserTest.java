@@ -46,6 +46,7 @@ import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTaskImpl;
 import com.sun.tools.javac.tree.JCTree;
+import static global.Utils.asParameters;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -81,13 +82,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testPositionForSuperConstructorCalls() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test {public Test() {super();}}";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         SourcePositions pos = Trees.instance(ct).getSourcePositions();
 
@@ -108,13 +108,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testPositionForEnumModifiers() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public enum Test {A;}";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         SourcePositions pos = Trees.instance(ct).getSourcePositions();
 
@@ -132,7 +131,7 @@ public class JavacParserTest extends TestCase {
 //
 //        String code = "package test; public class Test { public void test() { new Runnable() {}.   } public Test() {}}";
 //
-//        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+//        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 //        CompilationUnitTree cut = ct.parse().iterator().next();
 //        SourcePositions pos = Trees.instance(ct).getSourcePositions();
 //
@@ -144,13 +143,12 @@ public class JavacParserTest extends TestCase {
 //    }
 
     public void testNewClassWithEnclosing() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; class Test { class d {} private void method() { Object o = Test.this.new d(); } }";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         SourcePositions pos = Trees.instance(ct).getSourcePositions();
 
@@ -162,13 +160,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testPreferredPositionForBinaryOp() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package test; public class Test {private void test() {Object o = null; boolean b = o != null && o instanceof String;} private Test() {}}";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
@@ -192,7 +189,6 @@ public class JavacParserTest extends TestCase {
         };
 
         for (String command : commands) {
-            final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
             final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
             assert tool != null;
 
@@ -205,7 +201,7 @@ public class JavacParserTest extends TestCase {
                     "    }\n" +
                     "}";
 
-            JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+            JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
             CompilationUnitTree cut = ct.parse().iterator().next();
 
             ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
@@ -231,7 +227,6 @@ public class JavacParserTest extends TestCase {
         };
 
         for (String command : commands) {
-            final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
             final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
             assert tool != null;
 
@@ -246,7 +241,7 @@ public class JavacParserTest extends TestCase {
                     "    }\n" +
                     "}";
 
-            JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+            JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
             CompilationUnitTree cut = ct.parse().iterator().next();
 
             ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
@@ -264,7 +259,6 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testErrorRecoveryForEnhancedForLoop142381() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -276,7 +270,7 @@ public class JavacParserTest extends TestCase {
             public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
                 errors.add(diagnostic);
             }
-        }, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        }, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
 
@@ -288,13 +282,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testPositionAnnotationNoPackage187551() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "\n@interface Test {}";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
         Trees t = Trees.instance(ct);
@@ -310,7 +303,6 @@ public class JavacParserTest extends TestCase {
     }
 
     private void performPositionsSanityTest(String code) throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -320,7 +312,7 @@ public class JavacParserTest extends TestCase {
             public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
                 errors.add(diagnostic);
             }
-        }, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        }, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         final CompilationUnitTree cut = ct.parse().iterator().next();
         final Trees trees = Trees.instance(ct);
@@ -416,7 +408,6 @@ public class JavacParserTest extends TestCase {
     }
 
     public void performWildcardPositionsTest(final String code, List<String> golden) throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -426,7 +417,7 @@ public class JavacParserTest extends TestCase {
             public void report(Diagnostic<? extends JavaFileObject> diagnostic) {
                 errors.add(diagnostic);
             }
-        }, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        }, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         final CompilationUnitTree cut = ct.parse().iterator().next();
         final List<String> content = new LinkedList<String>();
@@ -454,13 +445,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testStartPositionForMethodWithoutModifiers() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package t; class Test { <T> void t() {} }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
         MethodTree mt = (MethodTree) clazz.getMembers().get(0);
@@ -472,13 +462,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void BROKENtestStartPositionEnumConstantInit() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package t; enum Test { AAA; }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
         VariableTree enumAAA = (VariableTree) clazz.getMembers().get(0);
@@ -489,13 +478,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testVariableInIfThen1() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package t; class Test { private static void t(String name) { if (name != null) String nn = name.trim(); } }";
         DiagnosticCollector<JavaFileObject> coll = new DiagnosticCollector<JavaFileObject>();
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.parse();
         
@@ -509,13 +497,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testVariableInIfThen2() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package t; class Test { private static void t(String name) { if (name != null) class X {} } }";
         DiagnosticCollector<JavaFileObject> coll = new DiagnosticCollector<JavaFileObject>();
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.parse();
 
@@ -529,13 +516,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void BROKENtestVariableInIfThen3() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package t; class Test { private static void t(String name) { if (name != null) abstract } }";
         DiagnosticCollector<JavaFileObject> coll = new DiagnosticCollector<JavaFileObject>();
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, coll, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.parse();
 
@@ -551,25 +537,23 @@ public class JavacParserTest extends TestCase {
 
     //see javac bug #6882235, NB bug #98234:
     public void testMissingExponent() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "\nclass Test { { System.err.println(0e); } }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"/*, "-XDshouldStopPolicy=ENTER"*/), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"/*, "-XDshouldStopPolicy=ENTER"*/), null, Arrays.asList(new MyFileObject(code)));
         
         assertNotNull(ct.parse().iterator().next());
     }
 
     public void testTryResourcePos() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         final String code = "package t; class Test { { try (java.io.InputStream in = null) { } } }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         new TreeScanner<Void, Void>() {
@@ -585,13 +569,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testVarPos() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         final String code = "package t; class Test { { java.io.InputStream in = null; } }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         new TreeScanner<Void, Void>() {
@@ -607,13 +590,12 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testLambdaPositions() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         final String code = "package test; class Test { private void method() { java.util.List<String> l = null; l.reduce(null, (String s1, String s2) -> { return s1 + s2; }); } }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         final CompilationUnitTree cut = ct.parse().iterator().next();
         final Trees trees = Trees.instance(ct);
         final List<String> content = new ArrayList<String>();
@@ -658,25 +640,23 @@ public class JavacParserTest extends TestCase {
     }
 
     public void testInfiniteParsing() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         final String code = "111\npackage t; class Test { }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
         assertNotNull(cut);
     }
     
     public void testShouldNotSkipFirstStrictFP8005931() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         final String code = "strictfp class Test { }";
 
-        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, Arrays.asList("-bootclasspath", bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, null, null, asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         assertTrue(((ClassTree) cut.getTypeDecls().get(0)).getModifiers().getFlags().contains(Modifier.STRICTFP));

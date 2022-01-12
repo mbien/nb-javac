@@ -89,7 +89,7 @@ public class LowerTest extends TestCase {
 //        
 //        MemoryOutputJFM m = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
 //
-//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 //        
 //        ct.generate();
 //        
@@ -146,7 +146,7 @@ public class LowerTest extends TestCase {
 //        
 //        MemoryOutputJFM m = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
 //
-//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
 //        
 //        ct.generate();
 //        
@@ -180,7 +180,7 @@ public class LowerTest extends TestCase {
 //        
 //        MemoryOutputJFM m = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
 //
-//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, Arrays.asList("-bootclasspath",  bootPath, "-source", version, "-Xjcov", "-XDshould-stop.at=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
+//        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, m, null, global.Utils.asParameters("-source", version, "-Xjcov", "-XDshould-stop.at=GENERATE"), null, Arrays.asList(new MyFileObject(code)));
 //        
 //        ct.generate();
 //        

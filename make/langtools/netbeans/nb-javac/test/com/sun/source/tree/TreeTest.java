@@ -58,13 +58,12 @@ public class TreeTest extends TestCase {
     }
 
     public void BROKENtestToStringShouldNotEscape() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package večerníček; class A {}";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters(), null, Arrays.asList(new MyFileObject(code)));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
 
@@ -73,13 +72,12 @@ public class TreeTest extends TestCase {
     
     @Ignore
     public void BROKENtestArrayWithInitializerToString() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String code = "package večerníček; class A { private String[] arr = new String[] { };}";
 
-        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath), null, Arrays.asList(new MyFileObject(code)));
+        JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, global.Utils.asParameters(), null, Arrays.asList(new MyFileObject(code)));
 
         CompilationUnitTree cut = ct.parse().iterator().next();
 

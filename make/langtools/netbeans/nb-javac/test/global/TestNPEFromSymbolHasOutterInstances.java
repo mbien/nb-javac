@@ -67,7 +67,7 @@ public class TestNPEFromSymbolHasOutterInstances extends TestCase {
                       "	       test(new java.util.Comparator());\n" +
                       "    }\n" +
                       "}\n";
-        JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, null, null, global.Utils.asParameters("-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         CompilationUnitTree cut = ct.parse().iterator().next();
 
         ct.analyze();

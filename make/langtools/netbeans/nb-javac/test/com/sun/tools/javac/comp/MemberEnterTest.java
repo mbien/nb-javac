@@ -82,7 +82,7 @@ public class MemberEnterTest extends TestCase {
 
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         List<String> options = new LinkedList<String>();
-        options.addAll(Arrays.asList("-bootclasspath",  bootPath, "-source", "1.8", "-classpath", myself.toExternalForm()));
+        options.addAll(global.Utils.asParameters("-source", "1.8", "-classpath", myself.toExternalForm()));
         options.addAll(Arrays.asList("-processor", "global.ap1.ErrorProducingAP"));
 
         final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, null, options, null, Arrays.asList(new MyFileObject(code)));
@@ -127,7 +127,7 @@ public class MemberEnterTest extends TestCase {
         String code = "package test; public class Test { private void t() { Iterable<Integer> map = null; Integer reduce = map.reduce(0, (o, t) -); } }";
 
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
-        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, Arrays.asList("-bootclasspath",  bootPath, "-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new com.sun.tools.javac.comp.AttrTest.MyFileObject(code)));
+        final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, global.Utils.asParameters("-Xjcov", "-XDshouldStopPolicy=FLOW"), null, Arrays.asList(new com.sun.tools.javac.comp.AttrTest.MyFileObject(code)));
         ct.analyze();
     }
 }
