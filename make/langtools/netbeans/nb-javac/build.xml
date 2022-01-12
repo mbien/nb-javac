@@ -230,7 +230,7 @@
                     <arg value="--target"/>
                     <arg value="1.8"/>
                     <arg value="--source"/>
-                    <arg value="16"/>
+                    <arg value="17"/>
                     <arg line="${zdr.@{destdir}.list}"/>
                 </exec>
             </sequential>
@@ -250,7 +250,6 @@
                  <replacestring from="nbjavac/RuntimeWR$Version" to="java/lang/Runtime$Version"/>
             </filterchain>
         </copy>
-
         <jar destfile="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar">
             <manifest>
                 <attribute name="Multi-Release" value="true"/>
@@ -287,13 +286,47 @@
         </jar>
         <delete file="${dist.jar}"/>
     </target>
+    
+    <available file="${java.home}/bin/javap" property="javap.exe" value="${java.home}/bin/javap"/>
+    <available file="${java.home}/bin/javap.exe" property="javap.exe" value="${java.home}/bin/javap.exe"/>
+    <target name="-verify-source-version-classes" depends="-separate-jars" if="javap.exe">
+        <exec executable="${javap.exe}" failonerror="true" outputproperty="javap.SourceVersion.old">
+            <arg value="-bootclasspath"></arg>
+            <arg value="ignore"></arg>
+            <arg value="-cp"></arg>
+            <arg value="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar"></arg>
+            <arg value="javax.lang.model.SourceVersion"/>
+        </exec>
+        <exec executable="${javap.exe}" failonerror="true" outputproperty="javap.SourceVersion.new">
+            <arg value="-bootclasspath"></arg>
+            <arg value="ignore"></arg>
+            <arg value="--multi-release"></arg>
+            <arg value="17"></arg>
+            <arg value="-cp"></arg>
+            <arg value="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar"></arg>
+            <arg value="javax.lang.model.SourceVersion"/>
+        </exec>
+        <fail message="Patched version of SourceVersion should be different!">
+            <condition>
+                <equals arg1="${javap.SourceVersion.old}" arg2="${javap.SourceVersion.new}"/>
+            </condition>
+        </fail>
+        <fail message="Patched version of SourceVersion shall contain Runtime.Version: ${javap.SourceVersion.new}">
+            <condition>
+                <not>
+                    <contains string="${javap.SourceVersion.new}" substring="java.lang.Runtime$Version"/>
+                </not>
+            </condition>
+        </fail>
+        <echo message="JDK8 and JDK11 versions of javax.lang.model.SourceVersion verified successfully"/>
+    </target>
 
     <target name="-copy-jars-to-build" if="modules.ext.exists">
         <copy file="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar" tofile="../../../../../nbbuild/netbeans/java/modules/ext/nb-javac-api.jar" />
         <copy file="${dist.dir}/nb-javac-${nb-javac-ver}-impl.jar" tofile="../../../../../nbbuild/netbeans/java/modules/ext/nb-javac-impl.jar" />
         <touch file="../../../../../nbbuild/netbeans/java/.lastModified" />
     </target>
-    <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
+    <target name="-post-jar" depends="-post-init,-separate-jars,-verify-source-version-classes,-copy-jars-to-build">
     </target>
 
     <target name="-pre-compile-test" depends="jar"/>
