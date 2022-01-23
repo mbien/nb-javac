@@ -39,7 +39,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -273,22 +272,37 @@ public class AttrTest extends TestCase {
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-69:compiler.err.cant.resolve.location")), diagnostics);
     }
 
-    public void testAnonymous() throws IOException {
+    public void testAnonymous8() throws IOException {
+        Set<String> diagnostics = performAnnonymousTest("1.8");
+        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
+    }
+
+    public void testAnonymous9() throws IOException {
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
+        if ("1.8".equals(version)) {
+            // skipping source 9 on JDK-8
+            return;
+        }
+
+        Set<String> diagnostics = performAnnonymousTest("9");
+        assertEquals(new HashSet<String>(), diagnostics);
+    }
+
+    private Set<String> performAnnonymousTest(String version) {
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String use = "package test; import java.util.*; public class Use { public void t() { List<String> ll = new ArrayList<>() { }; } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
         final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
-        
+
         ct.analyze();
-        
+
         Set<String> diagnostics = new HashSet<String>();
-        
-        Utils.collectErrorsText(dc, diagnostics);
-        
-        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
+        for (Diagnostic<? extends JavaFileObject> d : Utils.filterErrors(dc.getDiagnostics())) {
+            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
+        }
+        return diagnostics;
     }
 
     public void BROKENtestErrorConstructor1() throws IOException {
