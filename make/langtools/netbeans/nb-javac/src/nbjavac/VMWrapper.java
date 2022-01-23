@@ -26,33 +26,24 @@ package nbjavac;
 
 import java.io.IOException;
 import java.net.JarURLConnection;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.file.AccessMode;
-import java.nio.file.CopyOption;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.WatchService;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class VMWrapper {
@@ -67,15 +58,26 @@ public class VMWrapper {
 
     public static Path findCtSym() {
         try {
-            URL res = VMWrapper.class.getResource("/META-INF/services/com.sun.tools.javac.platform.PlatformProvider");
+            ClassLoader loader = VMWrapper.class.getClassLoader();
+            if (loader == null) {
+                loader = ClassLoader.getSystemClassLoader();
+            }
+            Enumeration<URL> en = loader.getResources("META-INF/services/com.sun.tools.javac.platform.PlatformProvider");
+            URL res = en.hasMoreElements() ? en.nextElement() : null;
             if (res == null) {
                 //runnning inside a JDK image, try to look for lib/ct.sym:
                 String javaHome = System.getProperty("java.home");
                 Path file = Paths.get(javaHome);
-                // file == ${jdk.home}
-                for (String name : symbolFileLocation)
+                for (String name : symbolFileLocation) {
                     file = file.resolve(name);
+                }
+                if (!Files.exists(file)) {
+                    throw new IllegalStateException("Cannot find ct.sym at " + file);
+                }
                 return FileSystems.newFileSystem(file, (ClassLoader)null).getRootDirectories().iterator().next();
+            }
+            if (!res.getProtocol().equals("jar")) {
+                res = en.hasMoreElements() ? en.nextElement() : null;
             }
             URL jar = ((JarURLConnection)res.openConnection()).getJarFileURL();
             Path path = Paths.get(jar.toURI());
