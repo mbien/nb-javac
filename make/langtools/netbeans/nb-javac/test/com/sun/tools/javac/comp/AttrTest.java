@@ -33,11 +33,13 @@ import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.JavacTaskImpl;
+import global.Utils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -135,20 +137,11 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-72:compiler.err.type.error")), diagnostics);
     }
 
-    private void collectErrors(DiagnosticCollector<JavaFileObject> dc, Set<String> diagnostics) {
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            if (d.getSource() == null) {
-                continue;
-            }
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
-    }
-    
     public void testErrorReturnType2() throws IOException {
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
@@ -163,7 +156,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:68-68:compiler.err.expected")), diagnostics);
     }
@@ -182,7 +175,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-73:compiler.err.cant.resolve.location.args")), diagnostics);
     }
@@ -201,7 +194,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:90-94:compiler.err.type.error")), diagnostics);
     }
@@ -219,7 +212,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.<String>asList("/Use.java:47-52:compiler.err.cant.resolve.location")), diagnostics);
     }
@@ -238,7 +231,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-71:compiler.err.type.error")), diagnostics);
     }
@@ -257,7 +250,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-73:compiler.err.cant.resolve.location")), diagnostics);
     }
@@ -275,7 +268,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-69:compiler.err.cant.resolve.location")), diagnostics);
     }
@@ -293,7 +286,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
     }
@@ -311,7 +304,7 @@ public class AttrTest extends TestCase {
         ct.analyze();
         
         Set<String> diagnostics = new HashSet<String>();
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:44-49:compiler.err.cant.resolve.location", "/Use.java:64-77:compiler.err.type.error")), diagnostics);
     }
@@ -328,7 +321,7 @@ public class AttrTest extends TestCase {
         ct.analyze();
 
         Set<String> diagnostics = new HashSet<String>();
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
 
         assertEquals(dc.getDiagnostics().toString(), 0, diagnostics.size());
     }
@@ -345,7 +338,7 @@ public class AttrTest extends TestCase {
         ct.analyze();
 
         Set<String> diagnostics = new HashSet<String>();
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
 
         assertEquals(dc.getDiagnostics().toString(), 0, diagnostics.size());
     }
@@ -362,7 +355,7 @@ public class AttrTest extends TestCase {
         ct.analyze();
 
         Set<String> diagnostics = new HashSet<String>();
-        collectErrors(dc, diagnostics);
+        Utils.collectErrorsText(dc, diagnostics);
 
         assertEquals(dc.getDiagnostics().toString(), 0, diagnostics.size());
     }

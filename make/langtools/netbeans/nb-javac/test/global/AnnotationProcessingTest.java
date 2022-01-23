@@ -150,7 +150,8 @@ public class AnnotationProcessingTest extends TestCase {
         options.addAll(extraOptions);
         JavacTask ct = (JavacTask)tool.getTask(null, null, diagnostic, options, null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
-        assertEquals(diagnostic.getDiagnostics().toString(), expectedErrors, diagnostic.getDiagnostics().size());
+        Collection<Diagnostic<? extends JavaFileObject>> errors = Utils.filterErrors(diagnostic.getDiagnostics());
+        assertEquals(errors.toString(), expectedErrors, errors.size());
 
         //intentionally not deleting thwn the test fails to simply diagnostic
         delete(sourceOutput);
@@ -201,7 +202,7 @@ public class AnnotationProcessingTest extends TestCase {
 
         List<String> actualErrors = new ArrayList<String>();
 
-        for (Diagnostic<? extends JavaFileObject> d : diagnostic.getDiagnostics()) {
+        for (Diagnostic<? extends JavaFileObject> d : Utils.filterErrors(diagnostic.getDiagnostics())) {
             actualErrors.add(d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getMessage(null));
         }
 
@@ -217,19 +218,17 @@ public class AnnotationProcessingTest extends TestCase {
         sourceOutput.delete();
         assertTrue(sourceOutput.mkdirs());
 
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         URL myself = AnnotationProcessingTest.class.getProtectionDomain().getCodeSource().getLocation();
         
-        Main.compile(new String[] {
-            "-bootclasspath",  bootPath,
+        Main.compile(Utils.asParameters(
             "-source", version,
             "-target", version,
             "-classpath", myself.toExternalForm(),
             "-processor", ClassBasedAP.class.getName(),
             "-s", sourceOutput.getAbsolutePath(),
             "java.lang.String"
-        });
+        ).toArray(new String[0]));
 
         assertTrue(new File(sourceOutput, "java.lang.String.txt").canRead());
         

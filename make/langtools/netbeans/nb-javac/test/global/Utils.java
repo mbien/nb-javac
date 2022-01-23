@@ -26,7 +26,11 @@ package global;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaFileObject;
 
 public class Utils {
     private Utils() {
@@ -40,6 +44,25 @@ public class Utils {
             arr.add(bootPath);
         }
         arr.addAll(Arrays.asList(params));
+        return arr;
+    }
+
+    public static void collectErrorsText(DiagnosticCollector<JavaFileObject> dc, Collection<String> diagnostics) {
+        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
+            if (d.getSource() == null) {
+                continue;
+            }
+            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
+        }
+    }
+
+    public static Collection<Diagnostic<? extends JavaFileObject>> filterErrors(Collection<Diagnostic<? extends JavaFileObject>> diagnostics) {
+        List<Diagnostic<? extends JavaFileObject>> arr = new ArrayList<>();
+        for (Diagnostic<? extends JavaFileObject> d : diagnostics) {
+            if (d.getKind() == Diagnostic.Kind.ERROR) {
+                arr.add(d);
+            }
+        }
         return arr;
     }
 }
