@@ -202,7 +202,7 @@ is divided into following sections:
                 <isfalse value="${javadoc.preview}"/>
             </and>
         </condition>
-        <available classname="java.lang.Module" property="run.jvmargs" value="${run.jvmargs.jdk11}"/>
+        <available classname="java.lang.Module" property="run.jvmargs" value="${run.jvmargs.jdk17}"/>
         <property name="run.jvmargs" value="${run.jvmargs.jdk8}"/>
         <property name="run.jvmargs.ide" value=""/>
         <property name="javac.compilerargs" value=""/>
