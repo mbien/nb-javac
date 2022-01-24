@@ -25,22 +25,15 @@
 package com.sun.tools.javac.comp;
 
 import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.LiteralTree;
-import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
-import com.sun.source.util.SourcePositions;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
-import com.sun.source.util.TreeScanner;
 import com.sun.source.util.Trees;
-import com.sun.tools.javac.api.JavacScope;
 import com.sun.tools.javac.api.JavacTaskImpl;
-import com.sun.tools.javac.api.JavacTrees;
-import com.sun.tools.javac.tree.JCTree;
-import com.sun.tools.javac.tree.JCTree.JCLambda;
+import global.Utils;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -66,10 +59,7 @@ import javax.tools.JavaFileObject.Kind;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
 import junit.framework.TestCase;
-import org.junit.Ignore;
 
 /**
  *
@@ -146,13 +136,11 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-72:compiler.err.type.error")), diagnostics);
     }
-    
+
     public void testErrorReturnType2() throws IOException {
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
@@ -167,9 +155,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:68-68:compiler.err.expected")), diagnostics);
     }
@@ -188,9 +174,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-73:compiler.err.cant.resolve.location.args")), diagnostics);
     }
@@ -209,9 +193,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:90-94:compiler.err.type.error")), diagnostics);
     }
@@ -229,9 +211,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.<String>asList("/Use.java:47-52:compiler.err.cant.resolve.location")), diagnostics);
     }
@@ -250,9 +230,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-71:compiler.err.type.error")), diagnostics);
     }
@@ -271,9 +249,7 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:47-52:compiler.err.cant.resolve.location", "/Use.java:64-73:compiler.err.cant.resolve.location")), diagnostics);
     }
@@ -291,31 +267,42 @@ public class AttrTest extends TestCase {
         
         Set<String> diagnostics = new HashSet<String>();
         
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/Use.java:64-69:compiler.err.cant.resolve.location")), diagnostics);
     }
 
-    public void testAnonymous() throws IOException {
+    public void testAnonymous8() throws IOException {
+        Set<String> diagnostics = performAnnonymousTest("1.8");
+        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
+    }
+
+    public void testAnonymous9() throws IOException {
         final String version = System.getProperty("java.vm.specification.version"); //NOI18N
+        if ("1.8".equals(version)) {
+            // skipping source 9 on JDK-8
+            return;
+        }
+
+        Set<String> diagnostics = performAnnonymousTest("9");
+        assertEquals(new HashSet<String>(), diagnostics);
+    }
+
+    private Set<String> performAnnonymousTest(String version) {
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
         String use = "package test; import java.util.*; public class Use { public void t() { List<String> ll = new ArrayList<>() { }; } }";
         DiagnosticCollector<JavaFileObject> dc = new DiagnosticCollector<JavaFileObject>();
         final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject("Use", use)));
-        
+
         ct.analyze();
-        
+
         Set<String> diagnostics = new HashSet<String>();
-        
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
+        for (Diagnostic<? extends JavaFileObject> d : Utils.filterErrors(dc.getDiagnostics())) {
             diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
         }
-        
-        assertEquals(new HashSet<String>(Arrays.asList("/Use.java:93-104:compiler.err.cant.apply.diamond.1")), diagnostics);
+        return diagnostics;
     }
 
     public void BROKENtestErrorConstructor1() throws IOException {
@@ -331,10 +318,7 @@ public class AttrTest extends TestCase {
         ct.analyze();
         
         Set<String> diagnostics = new HashSet<String>();
-        
-        for (Diagnostic<? extends JavaFileObject> d : dc.getDiagnostics()) {
-            diagnostics.add(d.getSource().getName() + ":" + d.getStartPosition() + "-" + d.getEndPosition() + ":" + d.getCode());
-        }
+        Utils.collectErrorsText(dc, diagnostics);
         
         assertEquals(new HashSet<String>(Arrays.asList("/API.java:44-49:compiler.err.cant.resolve.location", "/Use.java:64-77:compiler.err.type.error")), diagnostics);
     }
@@ -350,7 +334,10 @@ public class AttrTest extends TestCase {
         final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
 
-        assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
+        Set<String> diagnostics = new HashSet<String>();
+        Utils.collectErrorsText(dc, diagnostics);
+
+        assertEquals(dc.getDiagnostics().toString(), 0, diagnostics.size());
     }
 
     public void testLambda2() throws IOException {
@@ -364,7 +351,10 @@ public class AttrTest extends TestCase {
         final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
 
-        assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
+        Set<String> diagnostics = new HashSet<String>();
+        Utils.collectErrorsText(dc, diagnostics);
+
+        assertEquals(dc.getDiagnostics().toString(), 0, diagnostics.size());
     }
     
     public void testNonVoidReturnType() throws IOException {
@@ -378,7 +368,10 @@ public class AttrTest extends TestCase {
         final JavacTaskImpl ct = (JavacTaskImpl)tool.getTask(null, null, dc, global.Utils.asParameters("-source", version, "-Xjcov"), null, Arrays.asList(new MyFileObject(code)));
         ct.analyze();
 
-        assertEquals(dc.getDiagnostics().toString(), 0, dc.getDiagnostics().size());
+        Set<String> diagnostics = new HashSet<String>();
+        Utils.collectErrorsText(dc, diagnostics);
+
+        assertEquals(dc.getDiagnostics().toString(), 0, diagnostics.size());
     }
     
 //    @Ignore

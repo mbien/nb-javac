@@ -22,7 +22,7 @@ if ! [ -f $JAVA_HOME17/jmods/java.base.jmod ]; then
 fi
 
 export JAVA_HOME=$JAVA_HOME17
-ant -d $ANT_ARGS_EXTRA -f make/langtools/netbeans/nb-javac clean jar
+ant -d $ANT_ARGS_EXTRA -f make/langtools/netbeans/nb-javac clean jar test
 
 
 export JAVA_HOME=$JAVA_HOME8
