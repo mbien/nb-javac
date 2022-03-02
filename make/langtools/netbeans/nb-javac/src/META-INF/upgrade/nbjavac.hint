@@ -251,5 +251,57 @@ java.lang.VirtualMachineError
 // fallback to highest available ct.sym
 com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
 =>
-nbjavac.VMWrapper.lookupPlatformDescriptionWithFallback($s)
+((java.util.function.Supplier<com.sun.tools.javac.platform.PlatformDescription>) () -> {
+    final String version = $s;
+    com.sun.tools.javac.platform.PlatformDescription pd = com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription(version);
+    if (pd != null) {
+        return pd;
+    }
+
+    com.sun.tools.javac.platform.PlatformDescription fallback = null;
+    for (int numVersion = Integer.valueOf(version); fallback == null; numVersion--) {
+        fallback = PlatformUtils.lookupPlatformDescription("" + numVersion);
+    }
+    if (fallback == null) {
+        throw new NullPointerException("No platform found for " + version);
+    }
+    final com.sun.tools.javac.platform.PlatformDescription delegate = fallback;
+
+    return new com.sun.tools.javac.platform.PlatformDescription() {
+        @Override
+        public javax.tools.JavaFileManager getFileManager() {
+            return delegate.getFileManager();
+        }
+
+        @Override
+        public String getSourceVersion() {
+            return version;
+        }
+
+        @Override
+        public String getTargetVersion() {
+            return version;
+        }
+
+        @Override
+        public java.util.List<PlatformDescription.PluginInfo<javax.annotation.processing.Processor>> getAnnotationProcessors() {
+            return delegate.getAnnotationProcessors();
+        }
+
+        @Override
+        public java.util.List<com.sun.tools.javac.platform.PlatformDescription.PluginInfo<com.sun.source.util.Plugin>> getPlugins() {
+            return delegate.getPlugins();
+        }
+
+        @Override
+        public java.util.List<String> getAdditionalOptions() {
+            return delegate.getAdditionalOptions();
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
+        }
+    };
+}).get();
 ;;

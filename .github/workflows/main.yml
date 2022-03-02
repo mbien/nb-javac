@@ -23,9 +23,13 @@ jobs:
         with:
             distribution: 'zulu'
             java-version: 17.0.0
+      - name: Record JDK17
+        run: echo "$JAVA_HOME" | tee jdk17
       - name: Build on JDK17
         run: ant -f make/langtools/netbeans/nb-javac jar
       - name: Test on JDK8
         run: JAVA_HOME=`cat jdk8` ant -f make/langtools/netbeans/nb-javac test
       - name: Test on JDK17
         run: ant -f make/langtools/netbeans/nb-javac test
+      - name: Build patched JDK17
+        run: ./build-jdk.sh
