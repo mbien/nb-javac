@@ -63,12 +63,6 @@ public class SwitchPrimitiveTypeTest extends TestCase {
     }
 
     public void testSwitchOnPrimitiveType() throws IOException {
-        final String bootPath = System.getProperty("sun.boot.class.path"); //NOI18N
-        if (bootPath != null) {
-            System.err.println("skipping testSwitchOnPrimitiveType on JDK-8");
-            return;
-        }
-        
         final JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
         assert tool != null;
 
@@ -88,18 +82,18 @@ public class SwitchPrimitiveTypeTest extends TestCase {
             }
             """;
         MemoryOutputJFM fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        JavacTask ct = (JavacTask)tool.getTask(null, fm, null, global.Utils.asParameters("--enable-preview", "--source", "18"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, fm, null, global.Utils.asParameters("--enable-preview", "--release", "18"), null, Arrays.asList(new MyFileObject(code)));
         Iterator<? extends JavaFileObject> out = ct.generate().iterator();
 
         assertTrue("Contains at least one element", out.hasNext());
         JavaFileObject xClass = out.next();
         assertEquals("generated:/X", xClass.toUri().toString());
     }
-    
+
     private static class MemoryOutputJFM extends ForwardingJavaFileManager<StandardJavaFileManager> {
 
         private final Map<String, byte[]> writtenClasses = new HashMap<String, byte[]>();
-        
+
         public MemoryOutputJFM(StandardJavaFileManager m) {
             super(m);
         }
@@ -122,7 +116,7 @@ public class SwitchPrimitiveTypeTest extends TestCase {
                 return super.getJavaFileForOutput(location, className, kind, sibling);
             }
         }
-        
+
     }
-    
+
 }

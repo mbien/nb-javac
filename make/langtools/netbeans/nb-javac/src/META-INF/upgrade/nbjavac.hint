@@ -247,3 +247,9 @@ jdk.internal.javac.NoPreview
 =>
 java.lang.VirtualMachineError
 ;;
+
+// fallback to highest available ct.sym
+com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
+=>
+nbjavac.VMWrapper.lookupPlatformDescriptionWithFallback($s)
+;;
