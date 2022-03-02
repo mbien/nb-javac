@@ -24,6 +24,9 @@
  */
 package nbjavac;
 
+import com.sun.source.util.Plugin;
+import com.sun.tools.javac.platform.PlatformDescription;
+import com.sun.tools.javac.platform.PlatformUtils;
 import java.io.IOException;
 import java.net.JarURLConnection;
 import java.net.URISyntaxException;
@@ -45,6 +48,8 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.processing.Processor;
+import javax.tools.JavaFileManager;
 
 public class VMWrapper {
     private VMWrapper() {
@@ -176,5 +181,71 @@ public class VMWrapper {
                 return p.getFileSystem().newWatchService();
             }
         };
+    }
+
+    public static PlatformDescription lookupPlatformDescriptionWithFallback(String version) {
+        PlatformDescription pd = PlatformUtils.lookupPlatformDescription(version);
+        if (pd != null) {
+            return pd;
+        }
+
+        PlatformDescription fallback = findFallbackPlatform(version);
+        return new DelegatingPlatformDescription(version, fallback);
+    }
+
+    private static PlatformDescription findFallbackPlatform(String version) throws NullPointerException, NumberFormatException {
+        PlatformDescription fallback = null;
+        for (int numVersion = Integer.valueOf(version); fallback == null; numVersion--) {
+            fallback = PlatformUtils.lookupPlatformDescription("" + numVersion);
+        }
+        if (fallback == null) {
+            throw new NullPointerException("No platform found for " + version);
+        }
+        return fallback;
+    }
+
+    private static class DelegatingPlatformDescription implements PlatformDescription {
+        private final PlatformDescription delegate;
+        private final String version;
+
+        DelegatingPlatformDescription(String version, PlatformDescription fallback) {
+            this.delegate = fallback;
+            this.version = version;
+        }
+
+        @Override
+        public JavaFileManager getFileManager() {
+            return delegate.getFileManager();
+        }
+
+        @Override
+        public String getSourceVersion() {
+            return version;
+        }
+
+        @Override
+        public String getTargetVersion() {
+            return version;
+        }
+
+        @Override
+        public List<PlatformDescription.PluginInfo<Processor>> getAnnotationProcessors() {
+            return delegate.getAnnotationProcessors();
+        }
+
+        @Override
+        public List<PlatformDescription.PluginInfo<Plugin>> getPlugins() {
+            return delegate.getPlugins();
+        }
+
+        @Override
+        public List<String> getAdditionalOptions() {
+            return delegate.getAdditionalOptions();
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
+        }
     }
 }
