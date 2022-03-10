@@ -30,6 +30,7 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.tools.ToolProvider;
 
 public class ServiceLoaderWrapper<T> implements Iterable<T> {
     private final ServiceLoader<T> loader;
@@ -56,6 +57,15 @@ public class ServiceLoaderWrapper<T> implements Iterable<T> {
     public static <T> ServiceLoader<T> loadWithClassLoader(Class<T> aClass, ClassLoader classLoader) {
         ModuleWrapper.ensureUses(aClass);
         return ServiceLoader.load(aClass, classLoader);
+    }
+
+    public static <T> ServiceLoader<T> loadTool(Class<T> toolClass) {
+        ModuleWrapper.ensureUses(toolClass);
+        ServiceLoader<T> res = ServiceLoader.load(toolClass, ToolProvider.class.getClassLoader());
+        if (res.iterator().hasNext()) {
+            return res;
+        }
+        return ServiceLoader.load(toolClass, ClassLoader.getSystemClassLoader());
     }
 
     public Stream<Provider<T>> stream() {

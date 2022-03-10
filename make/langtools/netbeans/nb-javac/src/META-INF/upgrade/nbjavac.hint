@@ -86,9 +86,14 @@ java.util.ServiceLoader.load($layer, $class) :: $layer instanceof java.lang.Modu
 nbjavac.ServiceLoaderWrapper.load($layer, $class)
 ;;
 
-java.util.ServiceLoader.load($class, $loader) :: $loader instanceof java.lang.ClassLoader && $class instanceof java.lang.Class && !inClass("com.sun.tools.doclint.DocLint")
+java.util.ServiceLoader.load($class, $loader) :: $loader instanceof java.lang.ClassLoader && $class instanceof java.lang.Class && !inClass("com.sun.tools.doclint.DocLint") && !inClass("javax.tools.ToolProvider");
 =>
 nbjavac.ServiceLoaderWrapper.loadWithClassLoader($class, $loader)
+;;
+
+java.util.ServiceLoader.load($class, $loader) :: $loader instanceof java.lang.ClassLoader && $class instanceof java.lang.Class && inClass("javax.tools.ToolProvider");
+=>
+nbjavac.ServiceLoaderWrapper.loadTool($class)
 ;;
 
 jdk.internal.jmod.JmodFile => nbjavac.JmodFileWrapper;;
