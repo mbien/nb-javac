@@ -193,7 +193,7 @@ $class.cast(((java.util.function.Supplier<Object>) () -> {
        Object v;
        try {
             v = javax.tools.ToolProvider.getSystemTool($class, $module, $name);
-        } catch (LinkageError err) {
+        } catch (Error err) {
             v = null;
         }
        if (v == null) {
