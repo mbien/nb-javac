@@ -24,10 +24,9 @@
  */
 package nbjavac;
 
-import com.sun.source.util.Plugin;
-import com.sun.tools.javac.platform.PlatformDescription;
-import com.sun.tools.javac.platform.PlatformUtils;
 import java.io.IOException;
+import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.net.JarURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -48,8 +47,6 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import javax.annotation.processing.Processor;
-import javax.tools.JavaFileManager;
 
 public class VMWrapper {
     private VMWrapper() {
@@ -60,8 +57,13 @@ public class VMWrapper {
     }
 
     private static final String[] symbolFileLocation = { "lib", "ct.sym" };
+    private static Reference<Path> cachedCtSym = new SoftReference<>(null);
 
     public static Path findCtSym() {
+        Path obj = cachedCtSym.get();
+        if (obj instanceof Path) {
+            return obj;
+        }
         try {
             ClassLoader loader = VMWrapper.class.getClassLoader();
             if (loader == null) {
@@ -87,7 +89,9 @@ public class VMWrapper {
             URL jar = ((JarURLConnection)res.openConnection()).getJarFileURL();
             Path path = Paths.get(jar.toURI());
             FileSystem fs = FileSystems.newFileSystem(path, (ClassLoader) null);
-            return fs.getPath("META-INF", "ct.sym");
+            Path ctSym = fs.getPath("META-INF", "ct.sym");
+            cachedCtSym = new SoftReference<>(ctSym);
+            return ctSym;
         } catch (IOException | URISyntaxException ex) {
             throw new IllegalStateException(ex);
         }
@@ -124,7 +128,6 @@ public class VMWrapper {
 
             @Override
             public void close() throws IOException {
-                p.getFileSystem().close();
             }
 
             @Override
