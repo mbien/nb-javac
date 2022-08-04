@@ -68,7 +68,7 @@ public class SwitchPrimitiveTypeTest extends TestCase {
 
         String code = """
             class X {
-                public int checkType(int v) {
+                public int checkType(Number v) {
                     return switch (v) {
                         case Integer i -> 40 + i;
                         default -> -42;
@@ -82,7 +82,7 @@ public class SwitchPrimitiveTypeTest extends TestCase {
             }
             """;
         MemoryOutputJFM fm = new MemoryOutputJFM(tool.getStandardFileManager(null, null, null));
-        JavacTask ct = (JavacTask)tool.getTask(null, fm, null, global.Utils.asParameters("--enable-preview", "--release", "18"), null, Arrays.asList(new MyFileObject(code)));
+        JavacTask ct = (JavacTask)tool.getTask(null, fm, null, global.Utils.asParameters("--enable-preview", "--release", "19"), null, Arrays.asList(new MyFileObject(code)));
         Iterator<? extends JavaFileObject> out = ct.generate().iterator();
 
         assertTrue("Contains at least one element", out.hasNext());
