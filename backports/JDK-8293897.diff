@@ -1,0 +1,144 @@
+diff --git a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Attr.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Attr.java
+index f8e2a5a33961..5167da0029a5 100644
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Attr.java
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Attr.java
+@@ -1900,6 +1900,8 @@ public void report(DiagnosticPosition pos, JCDiagnostic details) {
+                         checkAutoCloseable(resource.pos(), localEnv, resource.type);
+ 
+                         VarSymbol var = ((JCVariableDecl) resource).sym;
++
++                        var.flags_field |= Flags.FINAL;
+                         var.setData(ElementKind.RESOURCE_VARIABLE);
+                     } else {
+                         attribTree(resource, tryEnv, twrResult);
+diff --git a/src/jdk.compiler/share/classes/com/sun/tools/javac/parser/JavacParser.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/parser/JavacParser.java
+index b03bdb5e0a9f..0518adc134eb 100644
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/parser/JavacParser.java
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/parser/JavacParser.java
+@@ -3662,15 +3662,14 @@ List<JCTree> resources() {
+      *           | Expression
+      */
+     protected JCTree resource() {
+-        int startPos = token.pos;
+         if (token.kind == FINAL || token.kind == MONKEYS_AT) {
+-            JCModifiers mods = optFinal(Flags.FINAL);
++            JCModifiers mods = optFinal(0);
+             JCExpression t = parseType(true);
+             return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
+         }
+         JCExpression t = term(EXPR | TYPE);
+         if ((lastmode & TYPE) != 0 && LAX_IDENTIFIER.test(token.kind)) {
+-            JCModifiers mods = toP(F.at(startPos).Modifiers(Flags.FINAL));
++            JCModifiers mods = F.Modifiers(0);
+             return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
+         } else {
+             checkSourceLevel(Feature.EFFECTIVELY_FINAL_VARIABLES_IN_TRY_WITH_RESOURCES);
+diff --git a/test/langtools/tools/javac/parser/JavacParserTest.java b/test/langtools/tools/javac/parser/JavacParserTest.java
+index 93a854abadd8..96b578ac1069 100644
+--- a/test/langtools/tools/javac/parser/JavacParserTest.java
++++ b/test/langtools/tools/javac/parser/JavacParserTest.java
+@@ -23,7 +23,7 @@
+ 
+ /*
+  * @test
+- * @bug 7073631 7159445 7156633 8028235 8065753 8205418 8205913 8228451 8237041 8253584 8246774 8256411 8256149 8259050 8266436 8267221 8271928 8275097
++ * @bug 7073631 7159445 7156633 8028235 8065753 8205418 8205913 8228451 8237041 8253584 8246774 8256411 8256149 8259050 8266436 8267221 8271928 8275097 8293897
+  * @summary tests error and diagnostics positions
+  * @author  Jan Lahoda
+  * @modules jdk.compiler/com.sun.tools.javac.api
+@@ -71,6 +71,7 @@
+ import java.util.LinkedList;
+ import java.util.List;
+ import java.util.regex.Pattern;
++import javax.lang.model.element.Modifier;
+ import javax.lang.model.type.TypeKind;
+ import javax.tools.Diagnostic;
+ import javax.tools.DiagnosticCollector;
+@@ -1907,6 +1908,87 @@ public Void visitCase(CaseTree node, Void p) {
+         }.scan(cut, null);
+     }
+ 
++    @Test //JDK-8293897
++    void testImplicitFinalInTryWithResources() throws IOException {
++        String code = """
++                      package t;
++                      class Test {
++                          void test1() {
++                              try (AutoCloseable ac = null) {}
++                          }
++                          void test2() {
++                              try (@Ann AutoCloseable withAnnotation = null) {}
++                          }
++                          void test3() {
++                              try (final AutoCloseable withFinal = null) {}
++                          }
++                          void test4() {
++                              try (final @Ann AutoCloseable withAnnotationFinal = null) {}
++                          }
++                          @interface Ann {}
++                      }
++                      """;
++
++        JavacTaskImpl ct = (JavacTaskImpl) tool.getTask(null, fm, null, null,
++                null, Arrays.asList(new MyFileObject(code)));
++        CompilationUnitTree cut = ct.parse().iterator().next();
++        Trees t = Trees.instance(ct);
++        SourcePositions sp = t.getSourcePositions();
++        new TreeScanner<Void, Void>() {
++            boolean modifiersHaveFinal;
++            boolean modifiersHaveSpan;
++
++            @Override
++            public Void visitVariable(VariableTree node, Void p) {
++                boolean prevModifiersHaveFinal = modifiersHaveFinal;
++                boolean prevModifiersHaveSpan = modifiersHaveSpan;
++                try {
++                    modifiersHaveFinal = node.getName().toString().contains("Final");
++                    modifiersHaveSpan = modifiersHaveFinal ||
++                                        node.getName().toString().contains("Annotation");
++                    return super.visitVariable(node, p);
++                } finally {
++                    modifiersHaveFinal = prevModifiersHaveFinal;
++                    modifiersHaveSpan = prevModifiersHaveSpan;
++                }
++            }
++            @Override
++            public Void visitClass(ClassTree node, Void p) {
++                boolean prevModifiersHaveSpan = modifiersHaveSpan;
++                try {
++                    modifiersHaveSpan = node.getKind() == Kind.ANNOTATION_TYPE;
++                    return super.visitClass(node, p);
++                } finally {
++                    modifiersHaveSpan = prevModifiersHaveSpan;
++                }
++            }
++            @Override
++            public Void visitModifiers(ModifiersTree node, Void p) {
++                if (modifiersHaveFinal) {
++                    if (!node.getFlags().contains(Modifier.FINAL)) {
++                        throw new AssertionError("Expected final missing.");
++                    }
++                } else {
++                    if (node.getFlags().contains(Modifier.FINAL)) {
++                        throw new AssertionError("Unexpected final modified.");
++                    }
++                }
++                long start = sp.getStartPosition(cut, node);
++                long end = sp.getEndPosition(cut, node);
++                if (modifiersHaveSpan) {
++                    if (start == (-1) || end == (-1)) {
++                        throw new AssertionError("Incorrect modifier span: " + start + "-" + end);
++                    }
++                } else {
++                    if (start != (-1) || end != (-1)) {
++                        throw new AssertionError("Incorrect modifier span: " + start + "-" + end);
++                    }
++                }
++                return super.visitModifiers(node, p);
++            }
++        }.scan(cut, null);
++    }
++
+     void run(String[] args) throws Exception {
+         int passed = 0, failed = 0;
+         final Pattern p = (args != null && args.length > 0)
