@@ -176,13 +176,22 @@
         <resources id="sun.reflect">
             <javaresource name="sun/reflect/annotation/ExceptionProxy.class"/>
             <javaresource name="sun/reflect/annotation/AnnotationParser.class"/>
+            <javaresource name="sun/reflect/annotation/AnnotationParser$1.class"/>
+            <javaresource name="sun/reflect/annotation/AnnotationInvocationHandler.class"/>
             <javaresource name="sun/reflect/annotation/AnnotationType.class"/>
             <javaresource name="sun/reflect/annotation/EnumConstantNotPresentExceptionProxy.class"/>
+            <javaresource name="sun/reflect/annotation/AnnotationTypeMismatchExceptionProxy.class"/>
         </resources>
 
-        <mkdir dir="${tools.dir}/reflect"/>
-        <copy todir="${tools.dir}/reflect">
+        <mkdir dir="${tools.dir}/reflect/nbjavac/sun/annotation/"/>
+        <copy todir="${tools.dir}/reflect/nbjavac/sun/annotation/" flatten="true"
+            encoding="ISO-8859-1"
+            outputencoding="ISO-8859-1"
+        >
             <resources refid="sun.reflect"/>
+            <filterchain>
+                 <replacestring from="sun/reflect/annotation/" to="nbjavac/sun/annotation/"/>
+            </filterchain>
         </copy>
     </target>
 
@@ -282,6 +291,8 @@
                     <include name="README.md"/>
                     <include name="LICENSE.tx"/>
                     <include name="SECURITY.md"/>
+            </fileset>
+            <fileset dir="${tools.dir}/reflect/">
             </fileset>
         </jar>
         <delete file="${dist.jar}"/>
