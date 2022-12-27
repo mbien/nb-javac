@@ -193,6 +193,9 @@
                  <replacestring from="sun/reflect/annotation/" to="nbjavac/sun/annotation/"/>
             </filterchain>
         </copy>
+        <copy todir="${tools.dir}/reflect/">
+            <resources refid="sun.reflect"/>
+        </copy>
     </target>
 
     <target name="-init-macrodef-javac">
@@ -293,6 +296,7 @@
                     <include name="SECURITY.md"/>
             </fileset>
             <fileset dir="${tools.dir}/reflect/">
+                <include name="nbjavac/sun/annotation/*"/>
             </fileset>
         </jar>
         <delete file="${dist.jar}"/>
