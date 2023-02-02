@@ -25,7 +25,7 @@
 
 java.util.Set.of($args$) => java.util.Collections.unmodifiableSet(new java.util.HashSet<>(java.util.Arrays.asList($args$)));;
 java.util.List.of($args$) => java.util.Collections.unmodifiableList(java.util.Arrays.asList($args$));;
-
+java.util.Map.of($k, $v) => java.util.Collections.unmodifiableMap(java.util.Collections.singletonMap($k, $v));;
 
 //XXX: incorrect!
 java.lang.Runtime.version().feature() =>

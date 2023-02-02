@@ -157,26 +157,6 @@
                 </selector>
             </fileset>
         </copy>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8292755.diff"/>
-        </exec>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8292756.diff"/>
-        </exec>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8293897.diff"/>
-        </exec>
-        <exec executable="patch" dir="${root}">
-            <arg value="-p1"/>
-            <arg value="-i"/>
-            <arg value="${root}/backports/JDK-8295401.diff"/>
-        </exec>
         <java fork="true" failonerror="true" classpath="${tools.dir}/jackpot.jar" classname="org.netbeans.modules.jackpot30.cmdline.Main">
             <arg value="-hint-file"/>
             <arg value="${root}/make/langtools/netbeans/nb-javac/src/META-INF/upgrade/nbjavac.hint"/>
