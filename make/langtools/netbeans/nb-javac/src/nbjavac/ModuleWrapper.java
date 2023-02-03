@@ -26,6 +26,7 @@ package nbjavac;
 
 import java.lang.reflect.Method;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.Set;
 
 public class ModuleWrapper {
@@ -105,6 +106,9 @@ public class ModuleWrapper {
             return new ModuleLayer();
         }
 
+        public Set<ModuleWrapper> modules() {
+            return Collections.emptySet();
+        }
     }
 
     public static class Configuration {
