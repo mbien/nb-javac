@@ -134,7 +134,7 @@
         </java>
     </target>
 
-    <target name="-post-clean">
+    <target name="-post-clean" unless="skip.jackpot.clean">
         <delete dir="${src.dir}"/>
     </target>
         
