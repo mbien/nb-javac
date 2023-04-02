@@ -1,0 +1,41 @@
+name: NetBeans
+on: [push]
+#  push:
+#    branches: [ master ]
+jobs:
+  linux:
+    name: "NetBeans on nb-javac"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+            distribution: 'zulu'
+            java-version: 8
+      - name: Record JDK8
+        run: echo "$JAVA_HOME" | tee jdk8
+      - name: Set up JDK 17
+        uses: actions/setup-java@v2
+        with:
+            distribution: 'zulu'
+            java-version: 17.0.0
+      - name: Record JDK17
+        run: echo "$JAVA_HOME" | tee jdk17
+      - name: Jackpot on JDK17
+        run: ant -f make/langtools/netbeans/nb-javac clean jackpot
+      - name: Finish Build on JDK8
+        run: JAVA_HOME=`cat jdk8` ant -f make/langtools/netbeans/nb-javac jar
+      - name: Check NetBeans out
+        run: |
+            git clone https://github.com/apache/netbeans
+            cd netbeans
+            git checkout b03de5696eb2c18f13877dabbf8641d92274dc3a
+      - name: Build NetBeans with latest nb-javac
+        run: JAVA_HOME=`cat jdk8` ant -f netbeans build -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
+      - name: Setup Xvfb
+        run: |
+          echo "DISPLAY=:99.0" >> $GITHUB_ENV
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+      - name: Test with Commit Validation
+        run: JAVA_HOME=`cat jdk8` ant -f netbeans commit-validation -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
