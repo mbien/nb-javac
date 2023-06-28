@@ -25,6 +25,7 @@
 
 java.util.Set.of($args$) => java.util.Collections.unmodifiableSet(new java.util.HashSet<>(java.util.Arrays.asList($args$)));;
 java.util.List.of($args$) => java.util.Collections.unmodifiableList(java.util.Arrays.asList($args$));;
+java.util.List.copyOf($list) => java.util.Collections.unmodifiableList(new java.util.ArrayList<>($list));;
 java.util.Map.of($k, $v) => java.util.Collections.unmodifiableMap(java.util.Collections.singletonMap($k, $v));;
 
 //XXX: incorrect!
@@ -35,6 +36,7 @@ java.lang.Runtime.version().feature() =>
 
 @jdk.internal.javac.PreviewFeature($args$) => ;;
 @jdk.internal.javac.NoPreview => ;;
+@java.io.Serial => ;;
 @java.lang.Deprecated($arg1, $args$) => @java.lang.Deprecated;;
 
 
@@ -138,6 +140,11 @@ $1.stripIndent() :: $1 instanceof java.lang.String
 nbjavac.StringWrapper.stripIndent($1)
 ;;
 
+$1.stripTrailing() //:: $1 instanceof java.lang.String
+=>
+nbjavac.StringWrapper.stripTrailing($1)
+;;
+
 $1.translateEscapes() :: $1 instanceof java.lang.String
 =>
 nbjavac.StringWrapper.translateEscapes($1)
@@ -146,6 +153,11 @@ nbjavac.StringWrapper.translateEscapes($1)
 $1.isBlank() :: $1 instanceof java.lang.String
 =>
 nbjavac.StringWrapper.isBlank($1)
+;;
+
+$1.formatted($args$) :: $1 instanceof java.lang.String
+=>
+String.format($1, $args$)
 ;;
 
 jdk.internal.misc.VM => nbjavac.VMWrapper;;
@@ -254,6 +266,12 @@ jdk.internal.javac.NoPreview
 java.lang.VirtualMachineError
 ;;
 
+//to eliminate imports:
+java.io.Serial
+=>
+java.lang.VirtualMachineError
+;;
+
 // fallback to highest available ct.sym
 com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
 =>
@@ -337,3 +355,36 @@ sun.reflect.annotation.AnnotationTypeMismatchExceptionProxy
 nbjavac.sun.annotation.AnnotationTypeMismatchExceptionProxy
 ;;
 
+$cs.isEmpty() :: $cs instanceof java.lang.CharSequence
+=>
+($cs.length() == 0)
+;;
+
+$coll.toArray($type[]::new) :: inClass("com.sun.tools.javac.comp.Flow")
+=>
+$coll.toArray(new $type[0])
+;;
+
+$coll.toArray($expr) :: inClass("com.sun.tools.javac.comp.Flow") && containsAny($expr, "new com.sun.tools.javac.code.Type[$s]")
+=>
+$coll.toArray(new com.sun.tools.javac.code.Type[0])
+;;
+
+
+Iterable<String> $it;
+try {
+    $any$;
+} catch $catches$ :: inClass("com.sun.tools.javac.main.Main")
+=>
+Iterable<String> $it = java.util.Arrays.asList(argv);
+;;
+
+jdk.internal.opt.CommandLine
+=>
+java.lang.VirtualMachineError
+;;
+
+jdk.internal.opt.CommandLine.UnmatchedQuote
+=>
+java.lang.VirtualMachineError
+;;

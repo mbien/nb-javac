@@ -63,6 +63,13 @@ public class StringWrapper {
             }).collect(Collectors.joining("\n"));
     }
 
+    public static String stripTrailing(String str) {
+        int end = str.length();
+        while (end > 0 && Character.isWhitespace(str.charAt(end - 1)))
+            end--;
+        return str.substring(0, end);
+    }
+
     public static boolean isBlank(String s) {
         int at = 0;
         while (at < s.length() && Character.isWhitespace(s.charAt(at))) {
