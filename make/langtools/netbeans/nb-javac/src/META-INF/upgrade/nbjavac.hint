@@ -360,7 +360,7 @@ $cs.isEmpty() :: $cs instanceof java.lang.CharSequence
 ($cs.length() == 0)
 ;;
 
-$coll.toArray($type[]::new) :: inClass("com.sun.tools.javac.comp.Flow")
+$coll.toArray($type[]::new) :: $coll instanceof java.util.Collection
 =>
 $coll.toArray(new $type[0])
 ;;
