@@ -223,6 +223,7 @@
                 <multirootfileset id="zdr.@{destdir}" basedirs="${zdr.@{destdir}}">
                     <include name="**/*.java"/>
                     <exclude name="**/module-info.java"/>
+                    <exclude name="com/sun/tools/javac/launcher/Main.java"/>
                     <exclude name="com/sun/tools/javac/main/JavacToolProvider.java"/>
                     <exclude name="com/sun/tools/sjavac/**"/>
                     <exclude name="com/sun/tools/javap/Main.java"/>
