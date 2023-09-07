@@ -91,12 +91,12 @@
     <target name="-checkout-jdk" depends="-init-project,-check-jdk.is.available" unless="jdk.is.available">
         <exec failonerror="true" executable="git" dir="${jdk.repo}/..">
             <arg value="clone"/>
-            <arg value="--depth=1"/>
-            <arg value="--branch"/>
-            <arg value="${jdk.git.commit}"/>
-            <arg value="--single-branch"/>
             <arg value="${jdk.git.url}"/>
             <arg value="jdk"/>
+        </exec>
+        <exec failonerror="true" executable="git" dir="${jdk.repo}">
+            <arg value="checkout"/>
+            <arg value="${jdk.git.commit}"/>
         </exec>
     </target>
     
