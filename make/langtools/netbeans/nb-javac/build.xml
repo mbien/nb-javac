@@ -104,7 +104,8 @@
         <mkdir dir="build/lib"/>
         <mkdir dir="${tools.dir}"/>
         <get dest="${tools.dir}/jackpot.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/12.5/tool-12.5.jar"/>
-        <get dest="${tools.dir}/compiler.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/frgaal/compiler/19.0.0/compiler-19.0.0.jar"></get>
+        <get dest="${tools.dir}/compiler.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/frgaal/compiler/21.0.0/compiler-21.0.0.jar"></get>
+        <get dest="${tools.dir}/nb-javac-jdk-21u.jar" skipexisting="true" src="https://repo1.maven.org/maven2/com/dukescript/nbjavac/nb-javac/jdk-21u/nb-javac-jdk-21u.jar"></get>
         <get dest="build/lib/junit-4.12.jar" skipexisting="true" src="https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar"></get>
         <get dest="build/lib/hamcrest-core-1.3.jar" skipexisting="true" src="https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar"></get>
     </target>
@@ -148,9 +149,6 @@
                         <or>
                             <filename name="java.compiler/**"/>
                             <filename name="jdk.compiler/**"/>
-                            <filename name="jdk.jdeps/share/classes/module-info.java"/>
-                            <filename name="jdk.jdeps/share/classes/com/sun/tools/classfile/**"/>
-                            <filename name="jdk.jdeps/share/classes/com/sun/tools/javap/**"/>
                         </or>
                         <containsregexp expression="particular *file *as *subject *to *the.*Classpath.*exception"/>
                     </and>
@@ -161,41 +159,25 @@
             <arg value="-hint-file"/>
             <arg value="${root}/make/langtools/netbeans/nb-javac/src/META-INF/upgrade/nbjavac.hint"/>
             <arg value="-sourcepath"/>
-            <arg value="${root}/make/langtools/netbeans/nb-javac/src/:${src.dir}/jdk.compiler/share/classes/:${src.dir}/java.compiler/share/classes:${src.dir}/jdk.jdeps/share/classes"/>
+            <arg value="${root}/make/langtools/netbeans/nb-javac/src/:${src.dir}/jdk.compiler/share/classes/:${src.dir}/java.compiler/share/classes"/>
             <arg value="-source"/>
             <arg value="8"/>
             <arg value="--apply"/>
             <arg value="${src.dir}/java.compiler/share/classes"/>
             <arg value="${src.dir}/jdk.compiler/share/classes"/>
-            <arg value="${src.dir}/jdk.jdeps/share/classes"/>
         </java>
         <echo file="${src.dir}/jackpot-done">Jackpot done!</echo>
     </target>
 
     <target name="-pre-compile" depends="propertiesparser,jackpot">
-        <resources id="sun.reflect">
-            <javaresource name="sun/reflect/annotation/ExceptionProxy.class"/>
-            <javaresource name="sun/reflect/annotation/AnnotationParser.class"/>
-            <javaresource name="sun/reflect/annotation/AnnotationParser$1.class"/>
-            <javaresource name="sun/reflect/annotation/AnnotationInvocationHandler.class"/>
-            <javaresource name="sun/reflect/annotation/AnnotationType.class"/>
-            <javaresource name="sun/reflect/annotation/EnumConstantNotPresentExceptionProxy.class"/>
-            <javaresource name="sun/reflect/annotation/AnnotationTypeMismatchExceptionProxy.class"/>
-        </resources>
-
-        <mkdir dir="${tools.dir}/reflect/nbjavac/sun/annotation/"/>
-        <copy todir="${tools.dir}/reflect/nbjavac/sun/annotation/" flatten="true"
-            encoding="ISO-8859-1"
-            outputencoding="ISO-8859-1"
-        >
-            <resources refid="sun.reflect"/>
-            <filterchain>
-                 <replacestring from="sun/reflect/annotation/" to="nbjavac/sun/annotation/"/>
-            </filterchain>
-        </copy>
-        <copy todir="${tools.dir}/reflect/">
-            <resources refid="sun.reflect"/>
-        </copy>
+        <mkdir dir="${tools.dir}/reflect/"/>
+        <unzip src="${tools.dir}/nb-javac-jdk-21u.jar" dest="${tools.dir}/reflect/">
+            <patternset>
+                <include name="nbjavac/sun/annotation/**" />
+                <include name="com/sun/tools/classfile/**" />
+                <include name="com/sun/tools/javap/**" />
+            </patternset>
+        </unzip>
     </target>
 
     <target name="-init-macrodef-javac">
@@ -217,16 +199,15 @@
                 <condition property="zdr.@{destdir}" value="test">
                     <equals arg1="build/test/classes" arg2="@{destdir}"/>
                 </condition>
-                <property name="zdr.@{destdir}" value="src,../../../../src/java.compiler/share/classes,../../../../src/jdk.compiler/share/classes,../../../../src/jdk.jdeps/share/classes"/>
+                <property name="zdr.@{destdir}" value="src,../../../../src/java.compiler/share/classes,../../../../src/jdk.compiler/share/classes"/>
                 <property location="${build.dir}/empty" name="empty.dir"/>
                 <mkdir dir="${empty.dir}"/>
                 <multirootfileset id="zdr.@{destdir}" basedirs="${zdr.@{destdir}}">
                     <include name="**/*.java"/>
                     <exclude name="**/module-info.java"/>
-                    <exclude name="com/sun/tools/javac/launcher/Main.java"/>
+                    <exclude name="com/sun/tools/javac/launcher/*"/>
                     <exclude name="com/sun/tools/javac/main/JavacToolProvider.java"/>
                     <exclude name="com/sun/tools/sjavac/**"/>
-                    <exclude name="com/sun/tools/javap/Main.java"/>
                 </multirootfileset>
                 <pathconvert property="zdr.@{destdir}.list" refid="zdr.@{destdir}" pathsep=" "/>
                 <exec failonerror="true" executable="${java.home}/bin/java">
@@ -243,7 +224,7 @@
                     <arg value="--target"/>
                     <arg value="1.8"/>
                     <arg value="--source"/>
-                    <arg value="17"/>
+                    <arg value="21"/>
                     <arg value="--limit-modules"/>
                     <arg value="java.base"/>
                     <arg line="${zdr.@{destdir}.list}"/>
@@ -298,9 +279,7 @@
                     <include name="LICENSE.tx"/>
                     <include name="SECURITY.md"/>
             </fileset>
-            <fileset dir="${tools.dir}/reflect/">
-                <include name="nbjavac/sun/annotation/*"/>
-            </fileset>
+            <fileset dir="${tools.dir}/reflect/" />
         </jar>
         <delete file="${dist.jar}"/>
     </target>
@@ -357,7 +336,6 @@
             <exclude name="**/nb-javac-sources.zip"/>
             <include name="src/jdk.compiler/**"/>
             <include name="src/java.compiler/**"/>
-            <include name="src/jdk.jdeps/**"/>
             <include name="make/langtools/netbeans/nb-javac/**"/>
             <include name="README.md"/>
             <include name="SECURITY.md"/>
