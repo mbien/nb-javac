@@ -388,3 +388,8 @@ jdk.internal.opt.CommandLine.UnmatchedQuote
 =>
 java.lang.VirtualMachineError
 ;;
+
+sun.reflect.annotation
+=>
+java.lang.Object
+;;

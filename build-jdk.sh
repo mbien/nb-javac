@@ -74,7 +74,6 @@ $JAVA_HOME_VERSION/bin/jmod extract --dir=build/test/expanded/jdk.compiler $JAVA
 rm build/test/modules/jdk.jdeps.jmod
 
 mkdir -p build/test/src/jdk.jdeps
-cp src/jdk.jdeps/share/classes/module-info.java build/test/src/jdk.jdeps
 
 mkdir -p build/test/out/jdk.jdeps
 
@@ -88,9 +87,9 @@ cp -r build/test/expanded/jdk.jdeps/classes/* build/test/out/jdk.jdeps/
 rm -rf build/test/out/jdk.jdeps/com/sun/tools/classfile/
 
 mkdir -p build/test/out/jdk.jdeps/com/sun/tools/classfile/
-cp -r make/langtools/netbeans/nb-javac/build/classes/com/sun/tools/classfile build/test/out/jdk.jdeps/com/sun/tools/
+cp -r lib/reflect/com/sun/tools/classfile build/test/out/jdk.jdeps/com/sun/tools/
 mkdir -p build/test/out/jdk.jdeps/com/sun/tools/javap
-cp -r make/langtools/netbeans/nb-javac/build/classes/com/sun/tools/javap build/test/out/jdk.jdeps/com/sun/tools/
+cp -r lib/reflect/com/sun/tools/javap build/test/out/jdk.jdeps/com/sun/tools/
 
 #build module-infos:
 $JAVA_HOME_VERSION/bin/javac --module-source-path build/test/src/ -d build/test/out `find build/test/src/ -type f -name "*.java"`
