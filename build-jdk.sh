@@ -63,7 +63,6 @@ mkdir -p build/test/out/jdk.compiler/com/sun/tools/javac
 cp -r make/langtools/netbeans/nb-javac/build/classes/com/sun/tools/javac build/test/out/jdk.compiler/com/sun/tools/
 mkdir -p build/test/out/jdk.compiler/com/sun/tools/doclint
 cp -r make/langtools/netbeans/nb-javac/build/classes/com/sun/tools/doclint build/test/out/jdk.compiler/com/sun/tools/
-cp -r make/langtools/netbeans/nb-javac/build/classes/jdk build/test/out/jdk.compiler/
 
 rm -rf build/test/expanded/jdk.compiler
 mkdir -p build/test/expanded/jdk.compiler
