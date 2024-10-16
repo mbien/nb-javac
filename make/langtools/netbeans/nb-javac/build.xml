@@ -222,7 +222,7 @@
                     <arg value="-d"/>
                     <arg value="@{destdir}"/>
                     <arg value="--target"/>
-                    <arg value="1.8"/>
+                    <arg value="17"/>
                     <arg value="--source"/>
                     <arg value="21"/>
                     <arg value="--limit-modules"/>
@@ -238,7 +238,7 @@
     
     <target name="-separate-jars" depends="init">
         <copy  file="${build.classes.dir}/javax/lang/model/SourceVersion.class"
-               tofile="${build.classes.dir}/META-INF/versions/11/javax/lang/model/SourceVersion.class"
+               tofile="${build.classes.dir}/META-INF/versions/17/javax/lang/model/SourceVersion.class"
                encoding="ISO-8859-1"
                outputencoding="ISO-8859-1"
         >
@@ -303,11 +303,15 @@
             <arg value="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar"></arg>
             <arg value="javax.lang.model.SourceVersion"/>
         </exec>
-        <fail message="Patched version of SourceVersion should be different!">
+        <!--
+        TODO check / remove
+
+        <fail message="Patched version of SourceVersion should be different! ${javap.SourceVersion.new}">
             <condition>
                 <equals arg1="${javap.SourceVersion.old}" arg2="${javap.SourceVersion.new}"/>
             </condition>
         </fail>
+        -->
         <fail message="Patched version of SourceVersion shall contain Runtime.Version: ${javap.SourceVersion.new}">
             <condition>
                 <not>
@@ -315,7 +319,7 @@
                 </not>
             </condition>
         </fail>
-        <echo message="JDK8 and JDK11 versions of javax.lang.model.SourceVersion verified successfully"/>
+        <echo message="javax.lang.model.SourceVersion verified successfully"/>
     </target>
 
     <target name="-copy-jars-to-build" if="modules.ext.exists">

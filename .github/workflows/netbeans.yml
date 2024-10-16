@@ -1,4 +1,5 @@
-name: NetBeans
+name: NetBeans Smoketest
+
 on: [push]
 #  push:
 #    branches: [ master ]
@@ -7,42 +8,35 @@ jobs:
     name: "NetBeans on nb-javac"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 8
-        uses: actions/setup-java@v2
-        with:
-            distribution: 'zulu'
-            java-version: 8
-      - name: Record JDK8
-        run: echo "$JAVA_HOME" | tee jdk8
-      - name: Set up JDK 11
-        uses: actions/setup-java@v2
-        with:
-            distribution: 'zulu'
-            java-version: 11
-      - name: Record JDK11
-        run: echo "$JAVA_HOME" | tee jdk11
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
             distribution: 'zulu'
-            java-version: 17.0.0
-      - name: Record JDK17
-        run: echo "$JAVA_HOME" | tee jdk17
-      - name: Jackpot on JDK17
+            java-version: 17
+
+      - name: Jackpot on JDK 17
         run: ant -f make/langtools/netbeans/nb-javac clean jackpot
-      - name: Finish Build on JDK8
-        run: JAVA_HOME=`cat jdk8` ant -f make/langtools/netbeans/nb-javac jar
-      - name: Check NetBeans out
+
+      - name: Finish Build on JDK 17
+        run: ant -f make/langtools/netbeans/nb-javac jar
+
+      - name: Check NetBeans 23 out
         run: |
             git clone https://github.com/apache/netbeans
             cd netbeans
-            git checkout 0a84604d51f9e8b560c060b8e26cdb3ee3141804
+            git checkout 2985f1fa57ce0c1877bad0f86d5e5504d65f9286
+
       - name: Build NetBeans with latest nb-javac
-        run: JAVA_HOME=`cat jdk11` ant -f netbeans build -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
+        run: ant -f netbeans build -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
+
       - name: Setup Xvfb
         run: |
           echo "DISPLAY=:99.0" >> $GITHUB_ENV
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
       - name: Test with Commit Validation
         run: JAVA_HOME=`cat jdk11` ant -f netbeans commit-validation -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
