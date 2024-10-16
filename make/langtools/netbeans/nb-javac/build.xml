@@ -253,7 +253,7 @@
                     <arg value="-d"/>
                     <arg value="@{destdir}"/>
                     <arg value="--target"/>
-                    <arg value="1.8"/>
+                    <arg value="17"/>
                     <arg value="--source"/>
                     <arg value="24"/>
                     <arg value="--limit-modules"/>
@@ -268,15 +268,6 @@
     <target name="-javadoc-build"/>
     
     <target name="-separate-jars" depends="init">
-        <copy  file="${build.classes.dir}/javax/lang/model/SourceVersion.class"
-               tofile="${build.classes.dir}/META-INF/versions/11/javax/lang/model/SourceVersion.class"
-               encoding="ISO-8859-1"
-               outputencoding="ISO-8859-1"
-        >
-            <filterchain>
-                 <replacestring from="nbjavac/RuntimeWR$Version" to="java/lang/Runtime$Version"/>
-            </filterchain>
-        </copy>
         <jar destfile="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar">
             <manifest>
                 <attribute name="Multi-Release" value="true"/>
@@ -358,7 +349,7 @@
         <copy file="${dist.dir}/nb-javac-${nb-javac-ver}-impl.jar" tofile="../../../../../nbbuild/netbeans/java/modules/ext/nb-javac-impl.jar" />
         <touch file="../../../../../nbbuild/netbeans/java/.lastModified" />
     </target>
-    <target name="-post-jar" depends="-post-init,-separate-jars,-verify-source-version-classes,-copy-jars-to-build">
+    <target name="-post-jar" depends="-post-init,-separate-jars,-copy-jars-to-build">
     </target>
 
     <target name="-pre-compile-test" depends="jar"/>
