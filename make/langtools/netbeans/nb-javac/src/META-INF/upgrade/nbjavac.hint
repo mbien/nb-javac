@@ -88,6 +88,12 @@ static java.nio.file.Path findCtSym() {
 }
 ;;
 
+java.nio.file.FileSystems.newFileSystem($path, $a2)
+:: inClass("com.sun.tools.javac.platform.JDKPlatformProvider")
+=>
+nbjavac.VMWrapper.pathFs($path)
+;;
+
 //to eliminate imports:
 jdk.internal.javac.PreviewFeature
 =>
