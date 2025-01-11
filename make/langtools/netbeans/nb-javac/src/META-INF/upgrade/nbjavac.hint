@@ -51,14 +51,6 @@ public static com.sun.source.util.JavacTask instance(javax.annotation.processing
 }
 ;;
 
-// todo: afaik this can be removed now since the layout changed at some point
-
-$1.resolve("jrt-fs.jar").toUri().toURL() :: $1 instanceof java.nio.file.Path
-=>
-$1.resolve("lib").resolve("jrt-fs.jar").toUri().toURL()
-;;
-
-
 javax.tools.ToolProvider.getSystemTool($class, $module, $name)
 =>
 $class.cast(((java.util.function.Supplier<Object>) () -> {
