@@ -98,6 +98,12 @@
             <arg value="checkout"/>
             <arg value="${jdk.git.commit}"/>
         </exec>
+        <exec failonerror="true" executable="bash" dir="${jdk.repo}">
+            <arg value="configure"/>
+        </exec>
+        <exec failonerror="true" executable="make" dir="${jdk.repo}">
+            <arg value="jdk.compiler-gensrc"/>
+        </exec>
     </target>
     
     <target name="-pre-init">
@@ -155,6 +161,9 @@
                 </selector>
             </fileset>
         </copy>
+        <copy todir="${src.dir}/jdk.compiler/share/classes/com/sun/tools/javac/code"
+              file="${jdk.repo}/build/linux-x86_64-server-release/support/gensrc/jdk.compiler/com/sun/tools/javac/code/FlagsEnum.java">
+        </copy>
         <java fork="true" failonerror="true" classpath="${tools.dir}/jackpot.jar" classname="org.netbeans.modules.jackpot30.cmdline.Main">
             <arg value="-hint-file"/>
             <arg value="${root}/make/langtools/netbeans/nb-javac/src/META-INF/upgrade/nbjavac.hint"/>
@@ -166,11 +175,13 @@
             <arg value="${src.dir}/java.compiler/share/classes"/>
             <arg value="${src.dir}/jdk.compiler/share/classes"/>
         </java>
+<!--
         <exec failonerror="true" executable="patch" dir="${src.dir}">
             <arg value="-p1"/>
             <arg value="-i"/>
             <arg value="${src.dir}/../temporary-patches/unnamed-workaround"/>
         </exec>
+-->
         <echo file="${src.dir}/jackpot-done">Jackpot done!</echo>
     </target>
 
