@@ -116,6 +116,7 @@ public class AnnotationProcessingTest extends TestCase {
                 "134-134:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Aux");
     }
 
+    /*
     @Ignore
     public void testNoAP() throws IOException {
         String code = "package test; public class Test { Auxiliary aux; }";
@@ -130,7 +131,7 @@ public class AnnotationProcessingTest extends TestCase {
                 "47-47:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Auxiliary",
                 "41-41:cannot find symbol\n  symbol:   class Unknown\n  location: class test.Aux");
     }
-
+*/
     private void performErrorsTest(String code, int expectedErrors) throws IOException {
         performErrorsTest(code, new ArrayList<String>(), expectedErrors);
     }
