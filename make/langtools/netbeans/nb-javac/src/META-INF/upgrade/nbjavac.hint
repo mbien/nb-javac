@@ -191,16 +191,6 @@ java.lang.Object
 
 // jdk.internal.opt.CommandLine usage removal?
 
-$coll.toArray($type[]::new) :: inClass("com.sun.tools.javac.comp.ExhaustivenessComputer")
-=>
-$coll.toArray(new $type[0])
-;;
-
-$coll.toArray($expr) :: inClass("com.sun.tools.javac.comp.ExhaustivenessComputer") && containsAny($expr, "new com.sun.tools.javac.code.Type[$s]")
-=>
-$coll.toArray(new com.sun.tools.javac.code.Type[0])
-;;
-
 Iterable<String> $it;
 try {
     $any$;
@@ -236,5 +226,7 @@ $mods$ $type<$T> fvs = $init$; :: inClass("com.sun.tools.javac.comp.CaptureScann
 =>
 $mods$ java.util.LinkedHashSet<$T> fvs = $init$;
 ;;
+
+// JDK 23+
 
 java.lang.runtime.ExactConversionsSupport => nbjavac.ExactConversionsSupport;;
