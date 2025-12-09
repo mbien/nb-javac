@@ -1,4 +1,5 @@
-name: NetBeans
+name: NetBeans Smoketest
+
 on: [push]
 #  push:
 #    branches: [ master ]
@@ -7,42 +8,49 @@ jobs:
     name: "NetBeans on nb-javac"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 8
-        uses: actions/setup-java@v2
-        with:
-            distribution: 'zulu'
-            java-version: 8
-      - name: Record JDK8
-        run: echo "$JAVA_HOME" | tee jdk8
-      - name: Set up JDK 11
-        uses: actions/setup-java@v2
-        with:
-            distribution: 'zulu'
-            java-version: 11
-      - name: Record JDK11
-        run: echo "$JAVA_HOME" | tee jdk11
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Set up JDK 25
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v5
         with:
-            distribution: 'zulu'
-            java-version: 25.0.0
-      - name: Record JDK25
-        run: echo "$JAVA_HOME" | tee jdk25
-      - name: Jackpot on JDK25
-        run: ant -f make/langtools/netbeans/nb-javac clean jackpot generate-files
-      - name: Finish Build on JDK8
-        run: JAVA_HOME=`cat jdk8` ant -f make/langtools/netbeans/nb-javac jar
-      - name: Check NetBeans out
+            distribution: 'temurin'
+            java-version: 25
+
+      - name: Run Jackpot
+        run: ant -f make/langtools/netbeans/nb-javac clean jackpot
+
+      - name: Build
+        run: ant -f make/langtools/netbeans/nb-javac jar
+
+# build nb
+      - name: Checkout NetBeans 23
         run: |
             git clone https://github.com/apache/netbeans
             cd netbeans
-            git checkout 0a84604d51f9e8b560c060b8e26cdb3ee3141804
+            git checkout 2985f1fa57ce0c1877bad0f86d5e5504d65f9286
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+            distribution: 'temurin'
+            java-version: 17
+
       - name: Build NetBeans with latest nb-javac
-        run: JAVA_HOME=`cat jdk11` ant -f netbeans build -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
+        run: ant -f netbeans build -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
+
+# test nb
+      - name: Set up JDK 11
+        uses: actions/setup-java@v5
+        with:
+            distribution: 'temurin'
+            java-version: 11
+
       - name: Setup Xvfb
         run: |
           echo "DISPLAY=:99.0" >> $GITHUB_ENV
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
       - name: Test with Commit Validation
-        run: JAVA_HOME=`cat jdk11` ant -f netbeans commit-validation -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
+        run: ant -f netbeans commit-validation -Dnbjavac.class.path=`pwd`/make/langtools/netbeans/nb-javac/dist/nb-javac-*.jar
