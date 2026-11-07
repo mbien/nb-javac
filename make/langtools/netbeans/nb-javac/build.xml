@@ -79,7 +79,20 @@
     <property name="jdk.repo" location="${root}/jdk"/>
     <property name="src.dir" location="${root}/src"/>
     <property name="tools.dir" location="${root}/lib"/>
-    
+    <!--
+      The ct.sym embedded in the impl jar must come from the JDK pinned by jdk.git.commit,
+      not from the JDK that happens to run this build (which may be a different build
+      number than the pinned one). Resolution order:
+        1. -Dct.sym.file=/path/to/ct.sym          (explicit override)
+        2. a locally built JDK (jdk.sh): jdk/build/<conf>/support/symbols/ct.sym
+        3. the official image of jdk.git.commit, downloaded on first use and cached in
+           ${ct.sym.pinned.dir}; both the archive and the extracted ct.sym are pinned by
+           SHA-256 in -init-ct.sym.
+      The ct.sym properties are set in the -init-ct.sym target (at runtime), not here:
+      jdk.git.commit only exists once nbproject/project.properties has been loaded by
+      the init chain, so a top-level <property> would keep the literal ${jdk.git.commit}.
+    -->
+
     <target name="-check-jdk.is.available">
         <available property="jdk.is.available" file="${jdk.repo}"/>
     </target>
@@ -267,7 +280,134 @@
     <!-- suppress javadoc generation for this library, as its wrappers do it -->
     <target name="-javadoc-build"/>
     
-    <target name="-separate-jars" depends="init">
+    <!--
+      Make sure the ct.sym of the pinned JDK (jdk.git.commit) is available.
+      Resolution order: -Dct.sym.file, then a locally built JDK (jdk.sh), then the
+      pinned download of the official image (fetched on first use).
+    -->
+    <target name="-init-ct.sym" depends="-init-project">
+        <!-- ct.sym of a locally built JDK (jdk.sh), if one exists: first match wins -->
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/linux-x86_64-server-release/support/symbols/ct.sym">
+            <available file="${jdk.repo}/build/linux-x86_64-server-release/support/symbols/ct.sym"/>
+        </condition>
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/linux-x86_64-server-release/images/jdk/lib/ct.sym">
+            <available file="${jdk.repo}/build/linux-x86_64-server-release/images/jdk/lib/ct.sym"/>
+        </condition>
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/linux-aarch64-server-release/support/symbols/ct.sym">
+            <available file="${jdk.repo}/build/linux-aarch64-server-release/support/symbols/ct.sym"/>
+        </condition>
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/linux-aarch64-server-release/images/jdk/lib/ct.sym">
+            <available file="${jdk.repo}/build/linux-aarch64-server-release/images/jdk/lib/ct.sym"/>
+        </condition>
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/macaarch64-server-release/support/symbols/ct.sym">
+            <available file="${jdk.repo}/build/macaarch64-server-release/support/symbols/ct.sym"/>
+        </condition>
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/macaarch64-server-release/images/jdk/lib/ct.sym">
+            <available file="${jdk.repo}/build/macaarch64-server-release/images/jdk/lib/ct.sym"/>
+        </condition>
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/macx86_64-server-release/support/symbols/ct.sym">
+            <available file="${jdk.repo}/build/macx86_64-server-release/support/symbols/ct.sym"/>
+        </condition>
+        <condition property="ct.sym.built.file" value="${jdk.repo}/build/macx86_64-server-release/images/jdk/lib/ct.sym">
+            <available file="${jdk.repo}/build/macx86_64-server-release/images/jdk/lib/ct.sym"/>
+        </condition>
+        <property name="ct.sym.pinned.dir" location="${user.home}/.nb-javac/ct-sym/${jdk.git.commit}"/>
+        <property name="ct.sym.pinned.file" location="${ct.sym.pinned.dir}/ct.sym"/>
+        <property name="ct.sym.file" location="${ct.sym.pinned.file}"/>
+        <property name="ct.sym.archive.name" value="${jdk.git.commit}.tar.gz"/>
+        <property name="ct.sym.archive.topdir" value="${jdk.git.commit}"/>
+        <property name="ct.sym.archive.url" value="https://github.com/adoptium/temurin28-binaries/releases/download/jdk-28%2B23-ea-beta/OpenJDK-jdk_x64_linux_hotspot_28_23-ea.tar.gz"/>
+        <property name="ct.sym.archive.sha256" value="2d07f2ec5f3d199ed68e83d7b46fc02672f2cfd1083588932e232f1ce340d0da"/>
+        <property name="ct.sym.sha256" value="205bac200d5f471325bec03f109ed4e76bf893c65b0914aafcf558a0fd89d516"/>
+    </target>
+
+    <target name="-ensure-ct.sym" depends="init,-init-ct.sym">
+        <!-- resolve the ct.sym source: -Dct.sym.file > locally built JDK > pinned download -->
+        <condition property="ct.sym.source" value="${ct.sym.file}">
+            <not>
+                <equals arg1="${ct.sym.file}" arg2="${ct.sym.pinned.file}"/>
+            </not>
+        </condition>
+        <condition property="ct.sym.source" value="${ct.sym.built.file}">
+            <isset property="ct.sym.built.file"/>
+        </condition>
+        <property name="ct.sym.source" value="${ct.sym.pinned.file}"/>
+        <!-- fetch the pinned image only when nothing else is available -->
+        <condition property="ct.sym.use.pinned">
+            <equals arg1="${ct.sym.source}" arg2="${ct.sym.pinned.file}"/>
+        </condition>
+        <condition property="ct.sym.next" value="-fetch-ct.sym">
+            <equals arg1="true" arg2="${ct.sym.use.pinned}"/>
+        </condition>
+        <property name="ct.sym.next" value="-noop"/>
+        <antcall target="${ct.sym.next}"/>
+        <available file="${ct.sym.source}" property="ct.sym.exists"/>
+        <fail message="ct.sym not found at ${ct.sym.source}. Pass -Dct.sym.file=/path/to/ct.sym, build the pinned JDK (jdk.sh), or restore network access so the pinned ${jdk.git.commit} ct.sym can be downloaded.">
+            <condition>
+                <not>
+                    <equals arg1="true" arg2="${ct.sym.exists}"/>
+                </not>
+            </condition>
+        </fail>
+        <echo>Embedding ct.sym from ${ct.sym.source}</echo>
+        <delete dir="${build.dir}/ct.sym"/>
+        <mkdir dir="${build.dir}/ct.sym"/>
+        <unzip src="${ct.sym.source}" dest="${build.dir}/ct.sym"/>
+    </target>
+
+    <!--
+      Download the official JDK image of jdk.git.commit (pinned by SHA-256) and extract
+      only lib/ct.sym from it. The result is cached in ${ct.sym.pinned.dir}; a cached
+      copy is verified against ${ct.sym.sha256} before it is used.
+    -->
+    <target name="-fetch-ct.sym">
+        <available file="${ct.sym.pinned.file}" property="ct.sym.cached"/>
+        <condition property="ct.sym.fetch.next" value="-download-ct.sym">
+            <not>
+                <isset property="ct.sym.cached"/>
+            </not>
+        </condition>
+        <property name="ct.sym.fetch.next" value="-noop"/>
+        <antcall target="${ct.sym.fetch.next}"/>
+        <checksum algorithm="SHA-256" file="${ct.sym.pinned.file}" property="ct.sym.final.sha256"/>
+        <fail message="ct.sym at ${ct.sym.pinned.file} has SHA-256 ${ct.sym.final.sha256}, expected ${ct.sym.sha256}. Delete ${ct.sym.pinned.dir} and rebuild.">
+            <condition>
+                <not>
+                    <equals arg1="${ct.sym.final.sha256}" arg2="${ct.sym.sha256}" casesensitive="false"/>
+                </not>
+            </condition>
+        </fail>
+    </target>
+
+    <target name="-download-ct.sym">
+        <mkdir dir="${ct.sym.pinned.dir}"/>
+        <get src="${ct.sym.archive.url}" dest="${ct.sym.pinned.dir}/${ct.sym.archive.name}" verbose="true"/>
+        <checksum algorithm="SHA-256" file="${ct.sym.pinned.dir}/${ct.sym.archive.name}" property="ct.sym.archive.sha256"/>
+        <fail message="SHA-256 of the downloaded JDK image is ${ct.sym.archive.sha256}, expected ${ct.sym.archive.sha256}. Refusing to use it.">
+            <condition>
+                <not>
+                    <equals arg1="${ct.sym.archive.sha256}" arg2="${ct.sym.archive.sha256}" casesensitive="false"/>
+                </not>
+            </condition>
+        </fail>
+        <delete dir="${ct.sym.pinned.dir}/extract"/>
+        <mkdir dir="${ct.sym.pinned.dir}/extract"/>
+        <exec executable="tar" failonerror="true">
+            <arg value="-xzf"/>
+            <arg value="${ct.sym.pinned.dir}/${ct.sym.archive.name}"/>
+            <arg value="-C"/>
+            <arg value="${ct.sym.pinned.dir}/extract"/>
+            <arg value="--wildcards"/>
+            <arg value="*/lib/ct.sym"/>
+        </exec>
+        <move failonerror="true" file="${ct.sym.pinned.dir}/extract/${ct.sym.archive.topdir}/lib/ct.sym" tofile="${ct.sym.pinned.file}"/>
+        <delete dir="${ct.sym.pinned.dir}/extract"/>
+        <delete file="${ct.sym.pinned.dir}/${ct.sym.archive.name}"/>
+    </target>
+
+    <target name="-noop"/>
+
+    <target name="-separate-jars" depends="init,-ensure-ct.sym">
         <jar destfile="${dist.dir}/nb-javac-${nb-javac-ver}-api.jar">
             <manifest>
                 <attribute name="Multi-Release" value="true"/>
@@ -295,7 +435,7 @@
                 <include name="jdk/internal/PreviewFeature*"/>
                 <include name="nbjavac/**"/>
             </fileset>
-            <zipfileset src="${tools.dir}/compiler.jar" includes="META-INF/ct*/**"/>
+            <zipfileset dir="${build.dir}/ct.sym" prefix="META-INF/ct.sym"/>
             <fileset dir="${nb.javac.dir}">
                     <include name="README.md"/>
                     <include name="LICENSE.tx"/>
