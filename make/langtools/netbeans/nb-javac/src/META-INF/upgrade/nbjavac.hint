@@ -103,13 +103,17 @@ java.lang.VirtualMachineError
 com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
 =>
 ((java.util.function.Function<String, com.sun.tools.javac.platform.PlatformDescription>) (version) -> {
+    // with --enable-preview, javac appends a ":preview" suffix to the release string
+    // which cannot be parsed as a version
+    final int colon = version.indexOf(':');
+    final String baseVersion = colon >= 0 ? version.substring(0, colon) : version;
     com.sun.tools.javac.platform.PlatformDescription pd = com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription(version);
     if (pd != null) {
         return pd;
     }
 
     com.sun.tools.javac.platform.PlatformDescription fallback = null;
-    for (int numVersion = Integer.valueOf(version); fallback == null; numVersion--) {
+    for (int numVersion = Integer.valueOf(baseVersion); fallback == null; numVersion--) {
         fallback = PlatformUtils.lookupPlatformDescription("" + numVersion);
     }
     if (fallback == null) {
@@ -125,12 +129,12 @@ com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
 
         @Override
         public String getSourceVersion() {
-            return version;
+            return baseVersion;
         }
 
         @Override
         public String getTargetVersion() {
-            return version;
+            return baseVersion;
         }
 
         @Override
