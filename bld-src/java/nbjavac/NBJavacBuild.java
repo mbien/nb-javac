@@ -1,0 +1,680 @@
+package nbjavac;
+
+import rife.bld.BaseProject;
+import rife.bld.BuildCommand;
+import rife.bld.extension.ExecOperation;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+
+/**
+ * bld build for nb-javac.
+ *
+ * Pipeline: clone the pinned JDK, build it, apply the jackpot hints to the
+ * compiler sources, compile with the pinned javac under the built JDK,
+ * split the api/impl jars with the built JDK's ct.sym embedded.
+ *
+ *   ./bld jdk    clone + build the pinned JDK (JDK_COMMIT)
+ *   ./bld jar    build the api/impl jars (compiles under the pinned JDK)
+ *   ./bld test   build the jars, then run the test suite under the current JVM
+ *   ./bld clean  remove all build products
+ *
+ * The directory layout is intentionally identical to the Ant build (build.xml):
+ * both share src/ (jackpot output), lib/ (tool jars) and
+ * make/langtools/netbeans/nb-javac/{build,dist}, so the two builds can be
+ * used interchangeably.
+ */
+public class NBJavacBuild extends BaseProject {
+
+    public static final String JDK_COMMIT = "jdk-28+23";
+    public static final String JDK_URL = "https://github.com/openjdk/jdk";
+
+    // Pinned fallback for the ct.sym, used only when the pinned JDK is not
+    // built locally. Both hashes are verified.
+    private static final String CT_SYM_ARCHIVE_URL =
+            "https://github.com/adoptium/temurin28-binaries/releases/download/jdk-28%2B23-ea-beta/OpenJDK-jdk_x64_linux_hotspot_28_23-ea.tar.gz";
+    private static final String CT_SYM_ARCHIVE_SHA256 =
+            "2d07f2ec5f3d199ed68e83d7b46fc02672f2cfd1083588932e232f1ce340d0da";
+    private static final String CT_SYM_SHA256 =
+            "205bac200d5f471325bec03f109ed4e76bf893c65b0914aafcf558a0fd89d516";
+
+    // Same license-exception filter the Ant build uses when copying sources.
+    private static final Pattern CLASSPATH_EXCEPTION =
+            Pattern.compile("particular *file *as *subject *to *the.*Classpath.*exception");
+
+    private final Path root;
+    private final Path nb;
+    private final Path jdk;
+    private final Path src;
+    private final Path lib;
+    private final Path buildDir;
+    private final Path distDir;
+
+    public NBJavacBuild() {
+        pkg = "nbjavac";
+        name = "nb-javac";
+        version = version(0, 1, 0);
+
+        Path w = workDirectory().toPath();
+        root = w;
+        nb = w.resolve("make/langtools/netbeans/nb-javac");
+        jdk = w.resolve("jdk");
+        src = w.resolve("src");
+        lib = w.resolve("lib");
+        buildDir = nb.resolve("build");
+        distDir = nb.resolve("dist");
+    }
+
+    // ---------------------------------------------------------------- commands
+
+    @BuildCommand(summary = "Clone and build the pinned JDK")
+    public void jdk() throws Exception {
+        if (!Files.exists(jdk.resolve(".git"))) {
+            exec(root, "git", "clone", JDK_URL, jdk.toString());
+            exec(jdk, "git", "checkout", JDK_COMMIT);
+        }
+        if (jdkImage() == null) {
+            exec(jdk, "bash", "configure", "--disable-warnings-as-errors", "--with-native-debug-symbols=none");
+            exec(jdk, "make", "-j" + Runtime.getRuntime().availableProcessors(), "images");
+        }
+        System.out.println("JDK image: " + jdkImage());
+    }
+
+    @BuildCommand(summary = "Build the api/impl jars (compiles under the pinned JDK)")
+    public void jar() throws Exception {
+        jdk();
+        downloadTools();
+        jackpot();
+        generateFiles();
+        reflectShims();
+        compileMain();
+        buildJars();
+    }
+
+    @Override
+    public void test() throws Exception {
+        jar();
+        Path testClasses = buildDir.resolve("test/classes");
+        deleteRecursively(testClasses);
+        List<Path> testSources = collectSources(nb.resolve("test"));
+        String cp = classPath(
+                buildDir.resolve("classes"),
+                implJar(),
+                lib.resolve("junit-4.12.jar"),
+                lib.resolve("hamcrest-core-1.3.jar"));
+        List<String> cmd = new ArrayList<>(List.of(
+                builtJava(),
+                "-jar", lib.resolve("compiler.jar").toString(),
+                "-g", "-encoding", "UTF-8",
+                "-cp", cp,
+                "-d", testClasses.toString(),
+                "--target", "21",
+                "--source", "24",
+                "--limit-modules", "java.base"));
+        for (Path f : testSources) {
+            cmd.add(f.toString());
+        }
+        exec(root, cmd.toArray(new String[0]));
+
+        // Run the suite in the JVM that runs this build (CI: JDK 21, the floor).
+        // --limit-modules is required: without it the JVM refuses to load
+        // classpath classes from packages owned by a resolved module
+        // (com.sun.source.*, com.sun.tools.*), same as the Ant build's
+        // run.jvmargs.jdk17.
+        List<String> tests = new ArrayList<>();
+        try (Stream<Path> s = Files.walk(testClasses)) {
+            s.filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().endsWith("Test.class"))
+                    .filter(p -> !p.getFileName().toString().contains("$"))
+                    .forEach(p -> tests.add(
+                            testClasses.relativize(p).toString().replace('\\', '/')
+                                    .replace(".class", "").replace('/', '.')));
+        }
+        tests.sort(String::compareTo);
+        List<String> run = new ArrayList<>(List.of(
+                currentJava(),
+                "--limit-modules", "java.base,java.xml,jdk.zipfs",
+                "-cp", classPath(buildDir.resolve("classes"), implJar(),
+                        lib.resolve("junit-4.12.jar"), lib.resolve("hamcrest-core-1.3.jar"), testClasses),
+                "org.junit.runner.JUnitCore"));
+        run.addAll(tests);
+        exec(root, run.toArray(new String[0]));
+    }
+
+    @Override
+    public void clean() throws Exception {
+        deleteRecursively(buildDir);
+        deleteRecursively(distDir);
+        deleteRecursively(src);
+    }
+
+    // ---------------------------------------------------------------- pipeline
+
+    private void downloadTools() throws Exception {
+        download("https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/28.0/tool-28.0.jar",
+                lib.resolve("jackpot.jar"));
+        // The pinned javac, same as the Ant build: it accepts
+        // --source 24 --target 21, which the built JDK 28's javac rejects.
+        download("https://repo1.maven.org/maven2/org/frgaal/compiler/24.0.0/compiler-24.0.0.jar",
+                lib.resolve("compiler.jar"));
+        download("https://repo1.maven.org/maven2/com/dukescript/nbjavac/nb-javac/jdk-21u/nb-javac-jdk-21u.jar",
+                lib.resolve("nb-javac-jdk-21u.jar"));
+        download("https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar",
+                lib.resolve("junit-4.12.jar"));
+        download("https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar",
+                lib.resolve("hamcrest-core-1.3.jar"));
+    }
+
+    private void jackpot() throws Exception {
+        if (Files.exists(src.resolve("jackpot-done"))) {
+            System.out.println("jackpot already applied");
+            return;
+        }
+        deleteRecursively(src);
+        Files.createDirectories(src);
+
+        for (String module : new String[]{"java.compiler", "jdk.compiler"}) {
+            Path moduleDir = jdk.resolve("src").resolve(module);
+            try (Stream<Path> s = Files.walk(moduleDir)) {
+                for (Path f : (Iterable<Path>) s.filter(Files::isRegularFile)::iterator) {
+                    if (hasLicenseException(f)) {
+                        Path target = src.resolve(module).resolve(moduleDir.relativize(f));
+                        Files.createDirectories(target.getParent());
+                        Files.copy(f, target);
+                    }
+                }
+            }
+        }
+
+        Path ecs = jdk.resolve("src/java.base/share/classes/java/lang/runtime/ExactConversionsSupport.java");
+        if (Files.exists(ecs) && hasLicenseException(ecs)) {
+            String content = new String(Files.readAllBytes(ecs), StandardCharsets.UTF_8)
+                    .replace("package java.lang.runtime;", "package nbjavac;");
+            Path target = src.resolve("java.base/share/classes/java/lang/runtime/ExactConversionsSupport.java");
+            Files.createDirectories(target.getParent());
+            Files.write(target, content.getBytes(StandardCharsets.UTF_8));
+        }
+
+        String sourcePath = classPath(
+                nb.resolve("src"),
+                src.resolve("jdk.compiler/share/classes"),
+                src.resolve("java.compiler/share/classes"),
+                src.resolve("java.base/share/classes"));
+        exec(root, builtJava(),
+                "-cp", lib.resolve("jackpot.jar").toString(),
+                "org.netbeans.modules.jackpot30.cmdline.Main",
+                "-hint-file", nb.resolve("src/META-INF/upgrade/nbjavac.hint").toString(),
+                "-sourcepath", sourcePath,
+                "-source", "8",
+                "--apply",
+                src.resolve("java.base/share/classes").toString(),
+                src.resolve("java.compiler/share/classes").toString(),
+                src.resolve("jdk.compiler/share/classes").toString());
+        Files.writeString(src.resolve("jackpot-done"), "Jackpot done!");
+    }
+
+    private void generateFiles() throws Exception {
+        Path flags = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code/Flags.java");
+        Path flagsEnum = flags.resolveSibling("FlagsEnum.java");
+        if (Files.exists(flags) && Files.exists(flagsEnum)
+                && Files.getLastModifiedTime(flagsEnum).compareTo(Files.getLastModifiedTime(flags)) >= 0) {
+            System.out.println("generated files up to date");
+            return;
+        }
+        Path tools = jdk.resolve("make/langtools/tools");
+        Path ppDir = lib.resolve("propertiesparser");
+        deleteRecursively(ppDir);
+        Files.createDirectories(ppDir);
+        List<String> cmd = new ArrayList<>(List.of(
+                builtTool("javac"),
+                "-g",
+                "-d", ppDir.toString(),
+                "--release", "25"));
+        for (Path f : collectSources(tools)) {
+            String name = f.toString();
+            if (name.contains("/propertiesparser/") || name.contains("/flagsgenerator/")) {
+                cmd.add(f.toString());
+            }
+        }
+        exec(root, cmd.toArray(new String[0]));
+
+        String cp = classPath(ppDir, tools);
+        Path resources = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/resources");
+        exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser",
+                "-compile", resources.resolve("compiler.properties").toString(), resources.toString());
+        exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser",
+                "-compile", resources.resolve("launcher.properties").toString(), resources.toString());
+        Path code = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code");
+        exec(root, builtJava(), "-cp", cp, "flagsgenerator.FlagsGenerator",
+                code.resolve("Flags.java").toString(), code.resolve("FlagsEnum.java").toString());
+    }
+
+    private void reflectShims() throws Exception {
+        Path reflect = lib.resolve("reflect");
+        deleteRecursively(reflect);
+        unzipInclude(lib.resolve("nb-javac-jdk-21u.jar"), reflect,
+                "nbjavac/sun/annotation/", "com/sun/tools/classfile/", "com/sun/tools/javap/");
+    }
+
+    private void compileMain() throws Exception {
+        Path classes = buildDir.resolve("classes");
+        deleteRecursively(classes);
+        List<Path> files = collectSources(
+                nb.resolve("src"),
+                src.resolve("java.base/share/classes"),
+                src.resolve("java.compiler/share/classes"),
+                src.resolve("jdk.compiler/share/classes"));
+        // Compiled with the pinned javac, same flags as the Ant build:
+        // --source 24 --target 21 pins the bytecode floor.
+        List<String> cmd = new ArrayList<>(List.of(
+                builtJava(),
+                "-jar", lib.resolve("compiler.jar").toString(),
+                "-g",
+                "-encoding", "UTF-8",
+                "-cp", lib.resolve("reflect").toString(),
+                "-d", classes.toString(),
+                "--target", "21",
+                "--source", "24",
+                "--limit-modules", "java.base"));
+        for (Path f : files) {
+            cmd.add(f.toString());
+        }
+        exec(root, cmd.toArray(new String[0]));
+
+        // Same resource copy as the Ant build's -do-compile: non-Java files
+        // (META-INF/services, .properties resources) join build/classes.
+        copyResources(nb.resolve("src"), classes);
+        copyResources(src.resolve("java.compiler/share/classes"), classes);
+        copyResources(src.resolve("jdk.compiler/share/classes"), classes);
+    }
+
+    private void copyResources(Path from, Path to) throws IOException {
+        if (!Files.isDirectory(from)) {
+            return;
+        }
+        try (Stream<Path> s = Files.walk(from)) {
+            List<Path> all = s.filter(Files::isRegularFile).sorted().toList();
+            for (Path f : all) {
+                String name = f.getFileName().toString();
+                if (name.endsWith(".java") || name.endsWith(".form")) {
+                    continue;
+                }
+                Path target = to.resolve(from.relativize(f));
+                Files.createDirectories(target.getParent());
+                Files.copy(f, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        }
+    }
+
+    private void buildJars() throws Exception {
+        Path ctSym = ctSymFile();
+        System.out.println("Embedding ct.sym from " + ctSym);
+        Path ctSymDir = buildDir.resolve("ct.sym");
+        deleteRecursively(ctSymDir);
+        unzipAll(ctSym, ctSymDir);
+        Files.createDirectories(distDir);
+
+        Path classes = buildDir.resolve("classes");
+        String ver = JDK_COMMIT;
+        try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + "-api.jar")))) {
+            writeManifest(z, true);
+            addMatching(z, classes, NBJavacBuild::apiEntry);
+            addDoc(z, "README.md");
+            addDoc(z, "SECURITY.md");
+        }
+        try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + "-impl.jar")))) {
+            writeManifest(z, false);
+            addMatching(z, classes, NBJavacBuild::implEntry);
+            addTree(z, ctSymDir, "META-INF/ct.sym/");
+            addDoc(z, "README.md");
+            addDoc(z, "SECURITY.md");
+            addTree(z, lib.resolve("reflect"), "");
+        }
+    }
+
+    // ---------------------------------------------------------------- ct.sym
+
+    private Path ctSymFile() throws Exception {
+        String override = System.getProperty("ct.sym.file");
+        if (override != null && !override.isEmpty()) {
+            return Path.of(override);
+        }
+        Path image = jdkImage();
+        if (image != null) {
+            Path inImage = image.resolve("images/jdk/lib/ct.sym");
+            if (Files.exists(inImage)) {
+                return inImage;
+            }
+            Path support = image.resolve("support/symbols/ct.sym");
+            if (Files.exists(support)) {
+                return support;
+            }
+        }
+        // Pinned download fallback.
+        Path cacheDir = Path.of(System.getProperty("user.home"), ".nb-javac", "ct-sym", JDK_COMMIT);
+        Path cached = cacheDir.resolve("ct.sym");
+        if (Files.exists(cached)) {
+            checkSha256(cached, CT_SYM_SHA256);
+            return cached;
+        }
+        Files.createDirectories(cacheDir);
+        Path archive = cacheDir.resolve(JDK_COMMIT + ".tar.gz");
+        download(CT_SYM_ARCHIVE_URL, archive);
+        checkSha256(archive, CT_SYM_ARCHIVE_SHA256);
+        Path extract = cacheDir.resolve("extract");
+        deleteRecursively(extract);
+        Files.createDirectories(extract);
+        exec(root, "tar", "-xzf", archive.toString(), "-C", extract.toString(),
+                "--wildcards", "*/lib/ct.sym");
+        Files.move(extract.resolve(JDK_COMMIT).resolve("lib").resolve("ct.sym"), cached,
+                StandardCopyOption.REPLACE_EXISTING);
+        deleteRecursively(extract);
+        Files.delete(archive);
+        return cached;
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    private Path jdkImage() {
+        Path build = jdk.resolve("build");
+        if (!Files.isDirectory(build)) {
+            return null;
+        }
+        try (Stream<Path> s = Files.list(build)) {
+            return s.filter(p -> Files.isDirectory(p.resolve("images/jdk"))).findFirst().orElse(null);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private String builtImage() {
+        Path image = jdkImage();
+        if (image == null) {
+            throw new IllegalStateException("JDK image not built, run: ./bld jdk");
+        }
+        return image.resolve("images/jdk").toString();
+    }
+
+    private String builtTool(String tool) {
+        return builtImage() + "/bin/" + tool;
+    }
+
+    private String builtJava() {
+        return builtTool("java");
+    }
+
+    private String currentJava() {
+        return System.getProperty("java.home") + "/bin/java";
+    }
+
+    private Path implJar() {
+        return distDir.resolve("nb-javac-" + JDK_COMMIT + "-impl.jar");
+    }
+
+    private Path apiJar() {
+        return distDir.resolve("nb-javac-" + JDK_COMMIT + "-api.jar");
+    }
+
+    private static String classPath(Path... paths) {
+        StringBuilder sb = new StringBuilder();
+        for (Path p : paths) {
+            if (sb.length() > 0) {
+                sb.append(File.pathSeparatorChar);
+            }
+            sb.append(p);
+        }
+        return sb.toString();
+    }
+
+    private List<Path> collectSources(Path... roots) throws IOException {
+        List<Path> out = new ArrayList<>();
+        for (Path r : roots) {
+            if (!Files.isDirectory(r)) {
+                continue;
+            }
+            try (Stream<Path> s = Files.walk(r)) {
+                s.filter(Files::isRegularFile)
+                        .filter(p -> p.toString().endsWith(".java"))
+                        .filter(p -> !excluded(r.relativize(p)))
+                        .sorted()
+                        .forEach(out::add);
+            }
+        }
+        return out;
+    }
+
+    /** Same excludes as the Ant build's multirootfileset. */
+    private static boolean excluded(Path rel) {
+        String p = rel.toString().replace('\\', '/');
+        if (p.endsWith("module-info.java")) {
+            return true;
+        }
+        if (p.startsWith("com/sun/tools/javac/launcher/")
+                && !p.substring("com/sun/tools/javac/launcher/".length()).contains("/")) {
+            return true;
+        }
+        if (p.equals("com/sun/tools/javac/main/JavacToolProvider.java")) {
+            return true;
+        }
+        if (p.startsWith("com/sun/tools/sjavac/")) {
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean hasLicenseException(Path f) throws IOException {
+        String content = new String(Files.readAllBytes(f), java.nio.charset.StandardCharsets.ISO_8859_1);
+        return CLASSPATH_EXCEPTION.matcher(content).find();
+    }
+
+    private void download(String url, Path dest) throws Exception {
+        if (Files.exists(dest)) {
+            return;
+        }
+        System.out.println("Downloading: " + url);
+        Files.deleteIfExists(dest);
+        HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
+        HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(dest));
+        if (response.statusCode() != 200) {
+            Files.deleteIfExists(dest);
+            throw new IOException("HTTP " + response.statusCode() + " for " + url);
+        }
+    }
+
+    private static void checkSha256(Path f, String expected) throws Exception {
+        String actual = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(Files.readAllBytes(f)));
+        if (!actual.equalsIgnoreCase(expected)) {
+            throw new IOException("SHA-256 of " + f + " is " + actual + ", expected " + expected);
+        }
+    }
+
+    private void unzipAll(Path zip, Path dest) throws IOException {
+        try (ZipFile zipFile = new ZipFile(zip.toFile())) {
+            var entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                extractEntry(zipFile, entries.nextElement(), dest);
+            }
+        }
+    }
+
+    private void unzipInclude(Path zip, Path dest, String... prefixes) throws IOException {
+        try (ZipFile zipFile = new ZipFile(zip.toFile())) {
+            var entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                String name = entry.getName();
+                for (String prefix : prefixes) {
+                    if (name.startsWith(prefix)) {
+                        extractEntry(zipFile, entry, dest);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private static void extractEntry(ZipFile zipFile, ZipEntry entry, Path dest) throws IOException {
+        Path target = dest.resolve(entry.getName());
+        if (entry.isDirectory()) {
+            Files.createDirectories(target);
+        } else {
+            Files.createDirectories(target.getParent());
+            try (var in = zipFile.getInputStream(entry)) {
+                Files.copy(in, target);
+            }
+        }
+    }
+
+    /** Same includes as the Ant build's api jar fileset. */
+    private static boolean apiEntry(String p) {
+        if (p.startsWith("com/sun/source/")) {
+            return true;
+        }
+        if (p.startsWith("javax/lang/")) {
+            return true;
+        }
+        if (p.startsWith("javax/tools/") && !p.substring("javax/tools/".length()).contains("/")) {
+            return true;
+        }
+        if (p.startsWith("jdk/internal/")
+                && !p.substring("jdk/internal/".length()).contains("/")
+                && p.substring("jdk/internal/".length()).startsWith("PreviewFeature")) {
+            return true;
+        }
+        if (p.startsWith("javax/annotation/")) {
+            return true;
+        }
+        if (p.startsWith("META-INF/versions/")) {
+            return true;
+        }
+        return false;
+    }
+
+    /** Same includes as the Ant build's impl jar fileset. */
+    private static boolean implEntry(String p) {
+        if (p.startsWith("META-INF/services/")) {
+            return true;
+        }
+        if (p.startsWith("com/sun/tools/")) {
+            return true;
+        }
+        if (p.startsWith("jdk/internal/shellsupport/")) {
+            return true;
+        }
+        if (p.startsWith("jdk/internal/")
+                && !p.substring("jdk/internal/".length()).contains("/")
+                && p.substring("jdk/internal/".length()).startsWith("PreviewFeature")) {
+            return true;
+        }
+        return p.startsWith("nbjavac/");
+    }
+
+    private void writeManifest(JarOutputStream z, boolean multiRelease) throws IOException {
+        Manifest m = new Manifest();
+        m.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+        if (multiRelease) {
+            m.getMainAttributes().putValue("Multi-Release", "true");
+        }
+        z.putNextEntry(new JarEntry("META-INF/MANIFEST.MF"));
+        m.write(z);
+        z.closeEntry();
+    }
+
+    private void addMatching(JarOutputStream z, Path dir,
+                             java.util.function.Predicate<String> filter) throws IOException {
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (Stream<Path> s = Files.walk(dir)) {
+            List<Path> all = s.filter(Files::isRegularFile).sorted().toList();
+            for (Path f : all) {
+                String rel = dir.relativize(f).toString().replace('\\', '/');
+                if (filter.test(rel)) {
+                    z.putNextEntry(new JarEntry(rel));
+                    Files.copy(f, z);
+                    z.closeEntry();
+                }
+            }
+        }
+    }
+
+    private void addTree(JarOutputStream z, Path dir, String prefix) throws IOException {
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (Stream<Path> s = Files.walk(dir)) {
+            List<Path> all = s.sorted().toList();
+            for (Path f : all) {
+                String rel = dir.relativize(f).toString().replace('\\', '/');
+                if (Files.isDirectory(f)) {
+                    if (!rel.isEmpty()) {
+                        z.putNextEntry(new JarEntry(prefix + rel + "/"));
+                        z.closeEntry();
+                    }
+                } else {
+                    z.putNextEntry(new JarEntry(prefix + rel));
+                    Files.copy(f, z);
+                    z.closeEntry();
+                }
+            }
+        }
+    }
+
+    private void addDoc(JarOutputStream z, String name) throws IOException {
+        Path f = root.resolve(name);
+        if (!Files.exists(f)) {
+            return;
+        }
+        z.putNextEntry(new JarEntry(name));
+        Files.copy(f, z);
+        z.closeEntry();
+    }
+
+    private static void deleteRecursively(Path p) throws IOException {
+        if (!Files.exists(p)) {
+            return;
+        }
+        try (Stream<Path> s = Files.walk(p)) {
+            s.sorted(Comparator.reverseOrder()).forEach(f -> {
+                try {
+                    Files.delete(f);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        }
+    }
+
+    private void exec(Path workDir, String... cmd) throws Exception {
+        new ExecOperation().fromProject(this).workDir(workDir.toFile())
+                .timeout(-1).command(cmd).execute();
+    }
+
+    public static void main(String[] args) throws Exception {
+        new NBJavacBuild().start(args);
+    }
+}

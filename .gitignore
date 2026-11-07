@@ -1,7 +1,11 @@
 /build/
 /dist/
 /jdk/
-/lib/
+lib/*
+!lib/bld/
+lib/bld/*
+!lib/bld/bld-wrapper.jar
+!lib/bld/bld-wrapper.properties
 /src/
 /jackpot.jar
 /.idea/
