@@ -102,8 +102,7 @@ java.lang.VirtualMachineError
 // fallback to highest available ct.sym
 com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
 =>
-((java.util.function.Supplier<com.sun.tools.javac.platform.PlatformDescription>) () -> {
-    final String version = $s;
+((java.util.function.Function<String, com.sun.tools.javac.platform.PlatformDescription>) (version) -> {
     com.sun.tools.javac.platform.PlatformDescription pd = com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription(version);
     if (pd != null) {
         return pd;
@@ -154,7 +153,7 @@ com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
             delegate.close();
         }
     };
-}).get();
+}).apply($s);
 ;;
 
 sun.reflect.annotation.ExceptionProxy

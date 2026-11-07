@@ -30,19 +30,29 @@ import java.lang.ref.SoftReference;
 import java.net.JarURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.file.FileStore;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
+import java.nio.file.DirectoryStream;
+import java.nio.file.FileStore;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public class VMWrapper {
     private VMWrapper() {
@@ -87,6 +97,60 @@ public class VMWrapper {
         } catch (IOException | URISyntaxException ex) {
             throw new IllegalStateException(ex);
         }
+    }
+
+    private static URL getJarUrl(Enumeration<URL> resources) throws IOException {
+        while (resources.hasMoreElements()) {
+            URL res = resources.nextElement();
+            if ("jar".equals(res.getProtocol())) {
+                return ((JarURLConnection)res.openConnection()).getJarFileURL();
+            } else if (res.getProtocol().equals("bundleresource")) {
+                // running inside Eclipse,
+                URLConnection conn = res.openConnection();
+                if (!"BundleURLConnection".equals(conn.getClass().getSimpleName())){
+                    continue;
+                }
+                // use reflection to call `public URL getLocalURL()` if it exists,
+                // as it converts the URL to a common local URL protocol (i.e file: or jar: protocol)
+                try {
+                    URL localUrl = (URL) conn.getClass().getMethod("getLocalURL").invoke(conn);
+                    if (localUrl == null) {
+                        continue;
+                    }
+                    if ("file".equals(localUrl.getProtocol())) {
+                        return localUrl;
+                    }
+                    if ("jar".equals(localUrl.getProtocol())) {
+                        return ((JarURLConnection) localUrl.openConnection()).getJarFileURL();
+                    }
+                } catch (ReflectiveOperationException ex) {
+                    // ignore and continue
+                }
+            }
+        }
+        throw new IllegalStateException("Cannot find jar URL for ct.sym");
+    }
+
+    public static DirectoryStream<Path> newDirectoryStream(Path dir) throws IOException {
+        List<Path> all = new ArrayList<>();
+        for (Path ch : Files.newDirectoryStream(dir)) {
+            final String fileName = ch.getFileName().toString();
+            if (fileName.endsWith("/")) {
+                all.add(dir.resolve(fileName.substring(0, fileName.length() - 1)));
+            } else {
+                all.add(ch);
+            }
+        }
+        return new DirectoryStream<Path>() {
+            @Override
+            public Iterator<Path> iterator() {
+                return all.iterator();
+            }
+
+            @Override
+            public void close() {
+            }
+        };
     }
 
     public static FileSystem pathFs(Path p) {
