@@ -190,8 +190,6 @@ sun.reflect.annotation
 java.lang.Object
 ;;
 
-// JDK 21+
-
 // jdk.internal.opt.CommandLine usage removal?
 
 Iterable<String> $it;
@@ -212,46 +210,8 @@ jdk.internal.opt.CommandLine.UnmatchedQuote
 java.lang.VirtualMachineError
 ;;
 
-// jdk.internal.opt.CommandLine end 
-
-$list.getLast() :: $list instanceof java.util.List
-=>
-$list.get($list.size() - 1)
-;;
-
-$list.removeLast() :: $list instanceof java.util.List
-=>
-$list.remove($list.size() - 1)
-;;
-
-java.util.SequencedSet => java.util.LinkedHashSet;;
-$mods$ $type<$T> fvs = $init$; :: inClass("com.sun.tools.javac.comp.CaptureScanner")
-=>
-$mods$ java.util.LinkedHashSet<$T> fvs = $init$;
-;;
-
-java.util.SequencedMap => java.util.Map;;
-
-java.util.Collections.unmodifiableSequencedMap($map)
-=>
-java.util.Collections.unmodifiableMap($map)
-;;
-
-$list.getFirst() :: $list instanceof java.util.List
-=>
-$list.get(0)
-;;
-
-$map.sequencedKeySet() :: $map instanceof java.util.SequencedMap
-=>
-new java.util.LinkedHashSet<>($map.keySet());
-;;
+// jdk.internal.opt.CommandLine end
 
 // JDK 23+
 
 java.lang.runtime.ExactConversionsSupport => nbjavac.ExactConversionsSupport;;
-
-java.util.Set.copyOf($1)
-=>
-nbjavac.CollectionsWrapper.copyOfSet($1)
-;;

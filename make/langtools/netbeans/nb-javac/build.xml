@@ -210,6 +210,16 @@
         <echo file="${src.dir}/jackpot-done">Jackpot done!</echo>
     </target>
 
+    <!-- Tests are classpath-based: JUnit and hamcrest are loaded from the classpath
+         and the javac classes come from build/classes and the impl jar (both in the
+         unnamed module). NetBeans' module-aware test fork args (patch-module plus
+         add-modules) would move the test classes into the java.compiler module,
+         which then can no longer resolve junit.framework. Force the plain,
+         classpath-based jvmargs instead. -->
+    <target name="-init-test-run-module-properties">
+        <property name="run.test.jvmargs" value=""/>
+    </target>
+
     <target name="-pre-compile" depends="generate-files,jackpot">
         <mkdir dir="${tools.dir}/reflect/"/>
         <unzip src="${tools.dir}/nb-javac-jdk-21u.jar" dest="${tools.dir}/reflect/">
@@ -266,7 +276,7 @@
                     <arg value="-d"/>
                     <arg value="@{destdir}"/>
                     <arg value="--target"/>
-                    <arg value="17"/>
+                    <arg value="21"/>
                     <arg value="--source"/>
                     <arg value="24"/>
                     <arg value="--limit-modules"/>
