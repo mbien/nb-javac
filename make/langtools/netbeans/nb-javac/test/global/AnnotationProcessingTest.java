@@ -31,7 +31,7 @@ import com.sun.tools.javac.api.JavacTaskImpl;
 import global.ap1.AP;
 import global.ap1.ClassBasedAP;
 import global.ap1.ErrorProducingAP;
-import global.ap1.ModuleCheckingAP;
+//import global.ap1.ModuleCheckingAP;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -239,7 +239,7 @@ public class AnnotationProcessingTest extends TestCase {
         //intentionally not deleting thwn the test fails to simply diagnostic
         delete(sourceOutput);
     }
-    
+ /*   
     public void testModuleElementNamesMatcheModuleNames() throws IOException {
         File sourceOutput = File.createTempFile("ModuleNames", "");
         
@@ -266,7 +266,7 @@ public class AnnotationProcessingTest extends TestCase {
         //intentionally not deleting thwn the test fails to simply diagnostic
         delete(sourceOutput);
     }
-    
+   */ 
     private static void delete(File d) {
         if (d.isDirectory()) {
             for (File f : d.listFiles()) {

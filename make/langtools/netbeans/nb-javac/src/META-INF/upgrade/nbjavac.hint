@@ -102,8 +102,8 @@ java.lang.VirtualMachineError
 // fallback to highest available ct.sym
 com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription($s)
 =>
+final String version = $s;
 ((java.util.function.Supplier<com.sun.tools.javac.platform.PlatformDescription>) () -> {
-    final String version = $s;
     com.sun.tools.javac.platform.PlatformDescription pd = com.sun.tools.javac.platform.PlatformUtils.lookupPlatformDescription(version);
     if (pd != null) {
         return pd;
