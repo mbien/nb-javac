@@ -111,7 +111,7 @@ public class NBJavacBuild extends BaseProject {
         // patch, build) is already in place, so a CI cache restore is a
         // no-op. Only a missing image requires source, hence the clone.
         if (jdkImage() == null) {
-            if (!Files.exists(jdk.resolve(".git"))) {
+            if (Files.notExists(jdk.resolve(".git"))) {
                 exec(root, "git", "clone", jdkUrl, jdk.toString());
                 exec(jdk, "git", "checkout", jdkTag);
                 // Make the pinned sources --release 21 compatible (renames
@@ -122,7 +122,9 @@ public class NBJavacBuild extends BaseProject {
                         root.resolve("patches/jdk-src-release-21.patch").toString());
             }
             exec(jdk, "bash", "configure", "--disable-warnings-as-errors", "--with-native-debug-symbols=none");
-            exec(jdk, "make", "-j" + Runtime.getRuntime().availableProcessors(), "images");
+            // The JDK build rejects GNU's -j flag and figures out the job
+            // count on its own, so a plain make images is all it needs.
+            exec(jdk, "make", "images");
         }
         System.out.println("JDK image: " + jdkImage());
     }
@@ -159,7 +161,7 @@ public class NBJavacBuild extends BaseProject {
         for (Path f : testSources) {
             cmd.add(f.toString());
         }
-        exec(root, cmd.toArray(new String[0]));
+        exec(root, cmd.toArray(String[]::new));
 
         // Run the suite in the JVM that runs this build (CI: JDK 21, the floor).
         // --limit-modules is required: without it the JVM refuses to load
@@ -183,7 +185,7 @@ public class NBJavacBuild extends BaseProject {
                         lib.resolve("junit-4.12.jar"), lib.resolve("hamcrest-core-1.3.jar"), testClasses),
                 "org.junit.runner.JUnitCore"));
         run.addAll(tests);
-        exec(root, run.toArray(new String[0]));
+        exec(root, run.toArray(String[]::new));
     }
 
     @Override
@@ -276,7 +278,7 @@ public class NBJavacBuild extends BaseProject {
                 cmd.add(f.toString());
             }
         }
-        exec(root, cmd.toArray(new String[0]));
+        exec(root, cmd.toArray(String[]::new));
 
         String cp = classPath(ppDir, tools);
         Path resources = jdkSrc.resolve("jdk.compiler/share/classes/com/sun/tools/javac/resources");
@@ -314,7 +316,7 @@ public class NBJavacBuild extends BaseProject {
         for (Path f : files) {
             cmd.add(f.toString());
         }
-        exec(root, cmd.toArray(new String[0]));
+        exec(root, cmd.toArray(String[]::new));
 
         // Same resource copy as the Ant build's -do-compile: non-Java files
         // (META-INF/services, .properties resources) join build/classes.
@@ -428,10 +430,6 @@ public class NBJavacBuild extends BaseProject {
 
     private Path implJar() {
         return distDir.resolve("nb-javac-" + jdkTag + "-impl.jar");
-    }
-
-    private Path apiJar() {
-        return distDir.resolve("nb-javac-" + jdkTag + "-api.jar");
     }
 
     private static String classPath(Path... paths) {
@@ -633,7 +631,7 @@ public class NBJavacBuild extends BaseProject {
 
     private void addDoc(JarOutputStream z, String name) throws IOException {
         Path f = root.resolve(name);
-        if (!Files.exists(f)) {
+        if (Files.notExists(f)) {
             return;
         }
         z.putNextEntry(new JarEntry(name));
@@ -642,7 +640,7 @@ public class NBJavacBuild extends BaseProject {
     }
 
     private static void deleteRecursively(Path p) throws IOException {
-        if (!Files.exists(p)) {
+        if (Files.notExists(p)) {
             return;
         }
         try (Stream<Path> s = Files.walk(p)) {
