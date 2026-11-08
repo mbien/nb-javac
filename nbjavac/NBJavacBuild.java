@@ -121,7 +121,7 @@ public class NBJavacBuild extends BaseProject {
         // no-op. Only a missing image requires source, hence the clone.
         if (jdkImage() == null) {
             if (Files.notExists(jdk.resolve(".git"))) {
-                // Depth-1 clone of the pinned tag
+                // Depth-5 clone of the pinned tag
                 exec(root, "git", "clone", "--depth", "5", "--branch", jdkTag, jdkUrl, jdk.toString());
                 // Make the pinned sources --release 21 compatible (renames
                 // the unnamed variables). A failure here means the patch is
@@ -129,7 +129,11 @@ public class NBJavacBuild extends BaseProject {
                 // patched.
                 exec(jdk, "git", "apply", root.resolve("patches/jdk-src-release-21.patch").toString());
             }
-            exec(jdk, "bash", "configure", "--disable-warnings-as-errors", "--with-native-debug-symbols=none");
+            // Headless-only: the image exists to build and run javac, so the
+            // X11 GUI support is dead weight (and its header dependency is a
+            // CI hazard). Only the native AWT parts are skipped - the Java
+            // API, and hence ct.sym, is identical to a full build.
+            exec(jdk, "bash", "configure", "--disable-warnings-as-errors", "--with-native-debug-symbols=none", "--enable-headless-only");
             exec(jdk, "make", "images");
         }
         System.out.println("JDK image: " + jdkImage());

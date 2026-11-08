@@ -4,7 +4,7 @@ on: [push]
 #  push:
 #    branches: [ master ]
 jobs: 
-  linux: 
+  base: 
     name: "nb-javac build and test"
     runs-on: ubuntu-latest
     steps:
@@ -12,44 +12,155 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up JDK 28
+      # Native dev libraries the (headless-only) JDK build checks for:
+      # audio, printing, fonts.
+      - name: Install native build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libasound2-dev libcups2-dev libfontconfig1-dev
+
+      # Host JDK for bld and boot JDK for the pinned JDK build
+      - name: Set up JDK 27
         uses: actions/setup-java@v5
         with:
             distribution: 'zulu'
-            java-version: 28-ea
+            java-version: 27
+            problem-matcher: false
+
+      # The JDK build cache is keyed on the pin, the source patch and the
+      # jackpot hint, so editing the build script or this workflow does not
+      # invalidate it.
+      - name: Compute JDK cache key
+        id: jdk-cache-key
+        run: |
+          KEY=$(cat jdk.properties patches/jdk-src-release-21.patch src/META-INF/upgrade/nbjavac.hint | sha256sum | cut -d' ' -f1)
+          echo "key=jdk-${KEY}" >> "$GITHUB_OUTPUT"
+
+      # The image is what jdk() gates on, so a restore makes the whole
+      # jdk() step a no-op. jdk-src is the jackpot output; the tools dir is
+      # read by the file generation even on a cache hit.
+      - name: Cache JDK image and jackpot output
+        uses: actions/cache@v5
+        with:
+          path: |
+            jdk/build/*/images/jdk
+            jdk-src
+            jdk/make/langtools/tools
+          key: ${{ steps.jdk-cache-key.outputs.key }}
+
+      # The long part on a cache miss (clone, patch, configure, make);
+      # a no-op on a hit, since the image is the gate.
+      - name: Build the pinned JDK
+        run: ./bld jdk
 
       - name: Build
-        run: ant -f make/langtools/netbeans/nb-javac jar
-        
+        run: ./bld jar
+
+      # jmods and src.zip can be dropped before caching since our build does not
+      # need them (~330M instead of ~460M).
+      - name: Slim the image before caching
+        run: rm -rf jdk/build/*/images/jdk/jmods jdk/build/*/images/jdk/src.zip
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
           name: dist
-          path: make/langtools/netbeans/nb-javac/dist/
+          path: dist/
           compression-level: 0
           retention-days: 3
           if-no-files-found: error
 
-      - name: Test on JDK 17
-        run: ant -f make/langtools/netbeans/nb-javac test
-
-      
+      # tests
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
             distribution: 'zulu'
             java-version: 21
-
+            problem-matcher: false
       - name: Test on JDK 21
-        run: ant -f make/langtools/netbeans/nb-javac test
-
+        run: ./bld test
 
       - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
             distribution: 'zulu'
             java-version: 25
-
+            problem-matcher: false
       - name: Test on JDK 25
-        run: ant -f make/langtools/netbeans/nb-javac test
+        run: ./bld test
 
+      - name: Set up JDK 28
+        uses: actions/setup-java@v5
+        with:
+            distribution: 'zulu'
+            java-version: 28-ea
+            problem-matcher: false
+      - name: Test on JDK 28
+        run: ./bld test
+
+  netbeans:
+    name: "NetBeans on nb-javac"
+    # The linux job ran first and saved the JDK build cache, so this job
+    # always restores (and never writes back).
+    needs: base
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Native dev libraries the (headless-only) JDK build checks for, in
+      # case the cache restore misses.
+      - name: Install native build dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq libasound2-dev libcups2-dev libfontconfig1-dev
+
+      # Host JDK for bld and boot JDK for the pinned JDK build
+      - name: Set up JDK 27
+        uses: actions/setup-java@v5
+        with:
+            distribution: 'temurin'
+            java-version: 27
+            problem-matcher: false
+
+      - name: Compute JDK cache key
+        id: jdk-cache-key
+        run: |
+          KEY=$(cat jdk.properties patches/jdk-src-release-21.patch src/META-INF/upgrade/nbjavac.hint | sha256sum | cut -d' ' -f1)
+          echo "key=jdk-${KEY}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore JDK image and jackpot output
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            jdk/build/*/images/jdk
+            jdk-src
+            jdk/make/langtools/tools
+          key: ${{ steps.jdk-cache-key.outputs.key }}
+
+      - name: Build
+        run: ./bld jar
+
+# build nb
+      - name: Checkout NetBeans 31
+        run: |
+            git clone https://github.com/apache/netbeans
+            cd netbeans
+            git checkout release310
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+            distribution: 'temurin'
+            java-version: 21
+            problem-matcher: false
+
+      - name: Build NetBeans with latest nb-javac
+        run: ant -f netbeans build -Dnbjavac.class.path=`pwd`/dist/nb-javac-*.jar
+
+      - name: Setup Xvfb
+        run: |
+          echo "DISPLAY=:99.0" >> $GITHUB_ENV
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+
+      - name: Test with Commit Validation
+        run: |
+          NB_JAVAC=`pwd`/dist/nb-javac-*.jar
+          ant -f netbeans commit-validation -Dnbjavac.class.path=$NB_JAVAC
