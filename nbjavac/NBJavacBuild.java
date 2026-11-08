@@ -112,8 +112,11 @@ public class NBJavacBuild extends BaseProject {
         // no-op. Only a missing image requires source, hence the clone.
         if (jdkImage() == null) {
             if (Files.notExists(jdk.resolve(".git"))) {
-                exec(root, "git", "clone", jdkUrl, jdk.toString());
-                exec(jdk, "git", "checkout", jdkTag);
+                // Depth-1 clone of the pinned tag: nothing downstream needs
+                // history (the patch is the only source modification), and
+                // it skips the ~1G of openjdk/jdk history.
+                exec(root, "git", "clone", "--depth", "1", "--branch", jdkTag,
+                        jdkUrl, jdk.toString());
                 // Make the pinned sources --release 21 compatible (renames
                 // the unnamed variables). A failure here means the patch is
                 // stale and needs fixing; an existing clone is assumed
