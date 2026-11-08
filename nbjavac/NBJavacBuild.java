@@ -370,12 +370,12 @@ public class NBJavacBuild extends BaseProject {
         Path classes = buildDir.resolve("classes");
         String ver = jdkTag;
         try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + "-api.jar")))) {
-            writeManifest(z, true);
+            writeManifest(z);
             addMatching(z, classes, NBJavacBuild::apiEntry);
             addDoc(z, "README.md");
         }
         try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + "-impl.jar")))) {
-            writeManifest(z, false);
+            writeManifest(z);
             addMatching(z, classes, NBJavacBuild::implEntry);
             addTree(z, ctSymDir, "META-INF/ct.sym/");
             addDoc(z, "README.md");
@@ -592,12 +592,9 @@ public class NBJavacBuild extends BaseProject {
         return p.startsWith("nbjavac/");
     }
 
-    private void writeManifest(JarOutputStream z, boolean multiRelease) throws IOException {
+    private void writeManifest(JarOutputStream z) throws IOException {
         Manifest m = new Manifest();
         m.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        if (multiRelease) {
-            m.getMainAttributes().putValue("Multi-Release", "true");
-        }
         z.putNextEntry(new JarEntry("META-INF/MANIFEST.MF"));
         m.write(z);
         z.closeEntry();
