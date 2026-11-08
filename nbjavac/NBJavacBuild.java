@@ -378,11 +378,13 @@ public class NBJavacBuild extends BaseProject {
             addMatching(z, classes, NBJavacBuild::apiEntry);
             addDoc(z, "README.md");
         }
-        // The main jar is unclassified (no -impl suffix): that is the name the
-        // pom pairs with on Central
+        // The main jar is self-contained (implementation + public API), like
+        // the old release's main: NetBeans' isolated compiler loader resolves
+        // javax.tools.* from this jar, not from the host JDK. The unclassified
+        // name is also the one the pom pairs with on Central.
         try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + ".jar")))) {
             writeManifest(z);
-            addMatching(z, classes, NBJavacBuild::implEntry);
+            addMatching(z, classes, p -> apiEntry(p) || implEntry(p));
             addTree(z, ctSymDir, "META-INF/ct.sym/");
             addDoc(z, "README.md");
             addTree(z, lib.resolve("payload"), "");
