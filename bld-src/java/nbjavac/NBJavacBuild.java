@@ -15,10 +15,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -50,15 +48,6 @@ public class NBJavacBuild extends BaseProject {
 
     public static final String JDK_COMMIT = "jdk-28+23";
     public static final String JDK_URL = "https://github.com/openjdk/jdk";
-
-    // Pinned fallback for the ct.sym, used only when the pinned JDK is not
-    // built locally. Both hashes are verified.
-    private static final String CT_SYM_ARCHIVE_URL =
-            "https://github.com/adoptium/temurin28-binaries/releases/download/jdk-28%2B23-ea-beta/OpenJDK-jdk_x64_linux_hotspot_28_23-ea.tar.gz";
-    private static final String CT_SYM_ARCHIVE_SHA256 =
-            "2d07f2ec5f3d199ed68e83d7b46fc02672f2cfd1083588932e232f1ce340d0da";
-    private static final String CT_SYM_SHA256 =
-            "205bac200d5f471325bec03f109ed4e76bf893c65b0914aafcf558a0fd89d516";
 
     // Same license-exception filter the Ant build uses when copying sources.
     private static final Pattern CLASSPATH_EXCEPTION =
@@ -94,6 +83,11 @@ public class NBJavacBuild extends BaseProject {
         if (!Files.exists(jdk.resolve(".git"))) {
             exec(root, "git", "clone", JDK_URL, jdk.toString());
             exec(jdk, "git", "checkout", JDK_COMMIT);
+            // Make the pinned sources --release 21 compatible (renames the
+            // unnamed variables). A failure here means the patch is stale
+            // and needs fixing; an existing clone is assumed patched.
+            exec(jdk, "git", "apply",
+                    root.resolve("patches/jdk-src-release-21.patch").toString());
         }
         if (jdkImage() == null) {
             exec(jdk, "bash", "configure", "--disable-warnings-as-errors", "--with-native-debug-symbols=none");
@@ -125,13 +119,11 @@ public class NBJavacBuild extends BaseProject {
                 lib.resolve("junit-4.12.jar"),
                 lib.resolve("hamcrest-core-1.3.jar"));
         List<String> cmd = new ArrayList<>(List.of(
-                builtJava(),
-                "-jar", lib.resolve("compiler.jar").toString(),
+                builtTool("javac"),
                 "-g", "-encoding", "UTF-8",
                 "-cp", cp,
                 "-d", testClasses.toString(),
-                "--target", "21",
-                "--source", "24",
+                "--release", "21",
                 "--limit-modules", "java.base"));
         for (Path f : testSources) {
             cmd.add(f.toString());
@@ -175,10 +167,6 @@ public class NBJavacBuild extends BaseProject {
     private void downloadTools() throws Exception {
         download("https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/28.0/tool-28.0.jar",
                 lib.resolve("jackpot.jar"));
-        // The pinned javac, same as the Ant build: it accepts
-        // --source 24 --target 21, which the built JDK 28's javac rejects.
-        download("https://repo1.maven.org/maven2/org/frgaal/compiler/24.0.0/compiler-24.0.0.jar",
-                lib.resolve("compiler.jar"));
         download("https://repo1.maven.org/maven2/com/dukescript/nbjavac/nb-javac/jdk-21u/nb-javac-jdk-21u.jar",
                 lib.resolve("nb-javac-jdk-21u.jar"));
         download("https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar",
@@ -251,7 +239,7 @@ public class NBJavacBuild extends BaseProject {
                 builtTool("javac"),
                 "-g",
                 "-d", ppDir.toString(),
-                "--release", "25"));
+                "--release", "21"));
         for (Path f : collectSources(tools)) {
             String name = f.toString();
             if (name.contains("/propertiesparser/") || name.contains("/flagsgenerator/")) {
@@ -286,17 +274,15 @@ public class NBJavacBuild extends BaseProject {
                 src.resolve("java.base/share/classes"),
                 src.resolve("java.compiler/share/classes"),
                 src.resolve("jdk.compiler/share/classes"));
-        // Compiled with the pinned javac, same flags as the Ant build:
-        // --source 24 --target 21 pins the bytecode floor.
+        // Compiled with the pinned javac at --release 21: the patched
+        // sources (patches/jdk-src-release-21.patch) are release-21 clean.
         List<String> cmd = new ArrayList<>(List.of(
-                builtJava(),
-                "-jar", lib.resolve("compiler.jar").toString(),
+                builtTool("javac"),
                 "-g",
                 "-encoding", "UTF-8",
                 "-cp", lib.resolve("reflect").toString(),
                 "-d", classes.toString(),
-                "--target", "21",
-                "--source", "24",
+                "--release", "21",
                 "--limit-modules", "java.base"));
         for (Path f : files) {
             cmd.add(f.toString());
@@ -356,6 +342,10 @@ public class NBJavacBuild extends BaseProject {
 
     // ---------------------------------------------------------------- ct.sym
 
+    /**
+     * The ct.sym always comes from the pinned JDK image (jar depends on
+     * jdk, which builds it); -Dct.sym.file overrides for special cases.
+     */
     private Path ctSymFile() throws Exception {
         String override = System.getProperty("ct.sym.file");
         if (override != null && !override.isEmpty()) {
@@ -372,27 +362,7 @@ public class NBJavacBuild extends BaseProject {
                 return support;
             }
         }
-        // Pinned download fallback.
-        Path cacheDir = Path.of(System.getProperty("user.home"), ".nb-javac", "ct-sym", JDK_COMMIT);
-        Path cached = cacheDir.resolve("ct.sym");
-        if (Files.exists(cached)) {
-            checkSha256(cached, CT_SYM_SHA256);
-            return cached;
-        }
-        Files.createDirectories(cacheDir);
-        Path archive = cacheDir.resolve(JDK_COMMIT + ".tar.gz");
-        download(CT_SYM_ARCHIVE_URL, archive);
-        checkSha256(archive, CT_SYM_ARCHIVE_SHA256);
-        Path extract = cacheDir.resolve("extract");
-        deleteRecursively(extract);
-        Files.createDirectories(extract);
-        exec(root, "tar", "-xzf", archive.toString(), "-C", extract.toString(),
-                "--wildcards", "*/lib/ct.sym");
-        Files.move(extract.resolve(JDK_COMMIT).resolve("lib").resolve("ct.sym"), cached,
-                StandardCopyOption.REPLACE_EXISTING);
-        deleteRecursively(extract);
-        Files.delete(archive);
-        return cached;
+        throw new IOException("No ct.sym found. Build the pinned JDK first: ./bld jdk");
     }
 
     // ---------------------------------------------------------------- helpers
@@ -501,14 +471,6 @@ public class NBJavacBuild extends BaseProject {
         if (response.statusCode() != 200) {
             Files.deleteIfExists(dest);
             throw new IOException("HTTP " + response.statusCode() + " for " + url);
-        }
-    }
-
-    private static void checkSha256(Path f, String expected) throws Exception {
-        String actual = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                .digest(Files.readAllBytes(f)));
-        if (!actual.equalsIgnoreCase(expected)) {
-            throw new IOException("SHA-256 of " + f + " is " + actual + ", expected " + expected);
         }
     }
 

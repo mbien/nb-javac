@@ -1,0 +1,95 @@
+diff -ruN a/make/langtools/tools/flagsgenerator/FlagsGenerator.java b/make/langtools/tools/flagsgenerator/FlagsGenerator.java
+--- a/make/langtools/tools/flagsgenerator/FlagsGenerator.java	2026-11-08 00:24:30.974983231 +0000
++++ b/make/langtools/tools/flagsgenerator/FlagsGenerator.java	2026-11-08 00:24:59.823943205 +0000
+@@ -74,14 +74,14 @@
+                             long flagValue = ((Number) field.getConstantValue()).longValue();
+                             int flagBit = 63 - Long.numberOfLeadingZeros(flagValue);
+ 
+-                            flag2Names.computeIfAbsent(flagBit, _ -> new ArrayList<>())
++                            flag2Names.computeIfAbsent(flagBit, unused -> new ArrayList<>())
+                                       .add(flagName);
+ 
+                             List<?> originalTargets = (List<?>) valueOfValueAttribute(am);
+                             originalTargets.stream()
+                                            .map(value -> FlagTarget.valueOf(value.toString()))
+-                                           .forEach(target -> target2FlagBit2Fields.computeIfAbsent(target, _ -> new HashMap<>())
+-                                                                                   .computeIfAbsent(flagBit, _ -> new ArrayList<>())
++                                           .forEach(target -> target2FlagBit2Fields.computeIfAbsent(target, unused -> new HashMap<>())
++                                                                                   .computeIfAbsent(flagBit, unused2 -> new ArrayList<>())
+                                                                                    .add(flagName));
+                         }
+                         case "com.sun.tools.javac.code.Flags.CustomToStringValue" -> {
+diff -ruN a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/ExhaustivenessComputer.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/ExhaustivenessComputer.java
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/ExhaustivenessComputer.java	2026-11-08 00:24:30.971897136 +0000
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/ExhaustivenessComputer.java	2026-11-08 00:24:59.838942984 +0000
+@@ -103,7 +103,7 @@
+         if (baseChecks != null) {
+             try {
+                 computedMaxBaseChecks = Long.parseLong(baseChecks);
+-            } catch (NumberFormatException _) {
++            } catch (NumberFormatException e) {
+                 //ignore invalid values and use the default maximum number of checks
+             }
+         }
+@@ -641,7 +641,7 @@
+     private boolean isSubtypeErasure(Type t, Type s) {
+         Pair<Type, Type> key = Pair.of(t, s);
+ 
+-        return isSubtypeCache.computeIfAbsent(key, _ ->
++        return isSubtypeCache.computeIfAbsent(key, unused ->
+                 types.isSubtype(types.erasure(t), types.erasure(s)));
+     }
+ 
+@@ -915,7 +915,15 @@
+     private PatternDescription generalizeInaccessibleTypes(Type targetType,
+                                                            PatternDescription forPattern) {
+         switch (forPattern) {
+-            case BindingPattern _, EnumConstantPattern _ -> {
++            case BindingPattern unused -> {
++                Type generalized = generalizeInaccessibleTypes(targetType, forPattern.type());
++                if (generalized != forPattern.type()) {
++                    return new BindingPattern(generalized);
++                } else {
++                    return forPattern;
++                }
++            }
++            case EnumConstantPattern unused -> {
+                 Type generalized = generalizeInaccessibleTypes(targetType, forPattern.type());
+                 if (generalized != forPattern.type()) {
+                     return new BindingPattern(generalized);
+diff -ruN a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Flow.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Flow.java
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Flow.java	2026-11-08 00:24:30.970768101 +0000
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/Flow.java	2026-11-08 00:24:59.799943557 +0000
+@@ -807,7 +807,7 @@
+         private JCDiagnostic patternToDiagnostic(PatternDescription desc) {
+             Type erasedPatternType = types.erasure(desc.type());
+             return diags.fragment(switch (desc) {
+-                case BindingPattern _ ->
++                case BindingPattern unused ->
+                     Fragments.BindingPattern(desc.type().hasTag(TypeTag.TYPEVAR) ? desc.type()
+                                                                                  : erasedPatternType);
+                 case RecordPattern rp ->
+diff -ruN a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/LambdaToMethod.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/LambdaToMethod.java
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/LambdaToMethod.java	2026-11-08 00:24:30.972930525 +0000
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/comp/LambdaToMethod.java	2026-11-08 00:24:59.801943528 +0000
+@@ -789,7 +789,7 @@
+ 
+         int implMethodKind = refSym.referenceKind();
+ 
+-        DeserializationCase deserializationCase = kInfo.deserializeCases.computeIfAbsent(implMethodName, _ -> {
++        DeserializationCase deserializationCase = kInfo.deserializeCases.computeIfAbsent(implMethodName, unused -> {
+             Name currentDeserializationMethodName = implMethodNameAsName == names.init
+                     ? names.deserializeLambda.append(names.fromString("init"))
+                     : names.deserializeLambda.append(target.syntheticNameChar(), implMethodNameAsName);
+diff -ruN a/src/jdk.compiler/share/classes/com/sun/tools/javac/tree/TreeInfo.java b/src/jdk.compiler/share/classes/com/sun/tools/javac/tree/TreeInfo.java
+--- a/src/jdk.compiler/share/classes/com/sun/tools/javac/tree/TreeInfo.java	2026-11-08 00:24:30.973926662 +0000
++++ b/src/jdk.compiler/share/classes/com/sun/tools/javac/tree/TreeInfo.java	2026-11-08 00:24:59.817943293 +0000
+@@ -476,7 +476,7 @@
+         }
+ 
+     public static boolean isType(JCTree base, Names names) {
+-        return isTypeSelector(base, names, _ -> true);
++        return isTypeSelector(base, names, unused -> true);
+     }
+ 
+     private static boolean isTypeSelector(JCTree base, Names names, Predicate<JCTree> checkStaticSym) {
