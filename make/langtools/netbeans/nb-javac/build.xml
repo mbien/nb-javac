@@ -84,7 +84,7 @@
       not from the JDK that happens to run this build (which may be a different build
       number than the pinned one). Resolution order:
         1. -Dct.sym.file=/path/to/ct.sym          (explicit override)
-        2. a locally built JDK (jdk.sh): jdk/build/<conf>/support/symbols/ct.sym
+        2. a locally built JDK (./bld jdk): jdk/build/<conf>/support/symbols/ct.sym
         3. the official image of jdk.git.commit, downloaded on first use and cached in
            ${ct.sym.pinned.dir}; both the archive and the extracted ct.sym are pinned by
            SHA-256 in -init-ct.sym.
@@ -292,11 +292,11 @@
     
     <!--
       Make sure the ct.sym of the pinned JDK (jdk.git.commit) is available.
-      Resolution order: -Dct.sym.file, then a locally built JDK (jdk.sh), then the
+      Resolution order: -Dct.sym.file, then a locally built JDK (./bld jdk), then the
       pinned download of the official image (fetched on first use).
     -->
     <target name="-init-ct.sym" depends="-init-project">
-        <!-- ct.sym of a locally built JDK (jdk.sh), if one exists: first match wins -->
+        <!-- ct.sym of a locally built JDK (./bld jdk), if one exists: first match wins -->
         <condition property="ct.sym.built.file" value="${jdk.repo}/build/linux-x86_64-server-release/support/symbols/ct.sym">
             <available file="${jdk.repo}/build/linux-x86_64-server-release/support/symbols/ct.sym"/>
         </condition>
@@ -352,7 +352,7 @@
         <property name="ct.sym.next" value="-noop"/>
         <antcall target="${ct.sym.next}"/>
         <available file="${ct.sym.source}" property="ct.sym.exists"/>
-        <fail message="ct.sym not found at ${ct.sym.source}. Pass -Dct.sym.file=/path/to/ct.sym, build the pinned JDK (jdk.sh), or restore network access so the pinned ${jdk.git.commit} ct.sym can be downloaded.">
+        <fail message="ct.sym not found at ${ct.sym.source}. Pass -Dct.sym.file=/path/to/ct.sym, build the pinned JDK (./bld jdk), or restore network access so the pinned ${jdk.git.commit} ct.sym can be downloaded.">
             <condition>
                 <not>
                     <equals arg1="true" arg2="${ct.sym.exists}"/>
