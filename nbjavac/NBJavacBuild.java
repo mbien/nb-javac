@@ -15,6 +15,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -382,6 +383,22 @@ public class NBJavacBuild extends BaseProject {
             addDoc(z, "README.md");
             addTree(z, lib.resolve("payload"), "");
         }
+        checksums();
+    }
+
+    /** Maven-repo-style .sha256 files (bare hash, no filename, no newline —
+     * matching the .sha1/.md5 convention on Central) next to the dist jars.
+     * Reproducible: the jars are, so these are too. */
+    private void checksums() throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        for (Path jar : List.of(apiJar(), implJar())) {
+            byte[] digest = md.digest(Files.readAllBytes(jar));
+            StringBuilder hex = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                hex.append(String.format("%02x", b));
+            }
+            Files.writeString(jar.resolveSibling(jar.getFileName() + ".sha256"), hex.toString());
+        }
     }
 
     // ---------------------------------------------------------------- ct.sym
@@ -445,6 +462,10 @@ public class NBJavacBuild extends BaseProject {
 
     private Path implJar() {
         return distDir.resolve("nb-javac-" + jdkTag + "-impl.jar");
+    }
+
+    private Path apiJar() {
+        return distDir.resolve("nb-javac-" + jdkTag + "-api.jar");
     }
 
     private static String classPath(Path... paths) {
