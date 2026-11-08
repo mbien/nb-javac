@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -592,10 +593,26 @@ public class NBJavacBuild extends BaseProject {
         return p.startsWith("nbjavac/");
     }
 
+    /** Zip entry timestamps: $SOURCE_DATE_EPOCH (the reproducible-builds.org
+     * convention) if set, else a fixed date — keeps the dist jars byte-for-byte
+     * reproducible. */
+    private static final long ENTRY_TIME_MILLIS =
+            Optional.ofNullable(System.getenv("SOURCE_DATE_EPOCH"))
+                    .map(e -> Long.parseLong(e) * 1000L)
+                    .orElse(1735689600L * 1000L); // 2025-01-01 UTC
+
+    // JarOutputStream stamps entries with the build wall-clock time unless the
+    // time is set; every entry gets the fixed timestamp instead.
+    private static JarEntry entry(String name) {
+        JarEntry e = new JarEntry(name);
+        e.setTime(ENTRY_TIME_MILLIS);
+        return e;
+    }
+
     private void writeManifest(JarOutputStream z) throws IOException {
         Manifest m = new Manifest();
         m.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        z.putNextEntry(new JarEntry("META-INF/MANIFEST.MF"));
+        z.putNextEntry(entry("META-INF/MANIFEST.MF"));
         m.write(z);
         z.closeEntry();
     }
@@ -609,7 +626,7 @@ public class NBJavacBuild extends BaseProject {
             for (Path f : all) {
                 String rel = dir.relativize(f).toString().replace('\\', '/');
                 if (filter.test(rel)) {
-                    z.putNextEntry(new JarEntry(rel));
+                    z.putNextEntry(entry(rel));
                     Files.copy(f, z);
                     z.closeEntry();
                 }
@@ -627,11 +644,11 @@ public class NBJavacBuild extends BaseProject {
                 String rel = dir.relativize(f).toString().replace('\\', '/');
                 if (Files.isDirectory(f)) {
                     if (!rel.isEmpty()) {
-                        z.putNextEntry(new JarEntry(prefix + rel + "/"));
+                        z.putNextEntry(entry(prefix + rel + "/"));
                         z.closeEntry();
                     }
                 } else {
-                    z.putNextEntry(new JarEntry(prefix + rel));
+                    z.putNextEntry(entry(prefix + rel));
                     Files.copy(f, z);
                     z.closeEntry();
                 }
@@ -644,7 +661,7 @@ public class NBJavacBuild extends BaseProject {
         if (Files.notExists(f)) {
             return;
         }
-        z.putNextEntry(new JarEntry(name));
+        z.putNextEntry(entry(name));
         Files.copy(f, z);
         z.closeEntry();
     }
