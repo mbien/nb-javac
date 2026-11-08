@@ -17,6 +17,11 @@ $ ./bld jar    # -> dist/nb-javac-<jdk-tag>-api.jar / -impl.jar
 $ ./bld test   # builds the jars, then runs the test suite
 ```
 
+```
+$ ./bld clean      # removes build products: build/, dist/, jdk-src/
+$ ./bld cleanAll   # clean plus the JDK clone and image (rebuild from scratch)
+```
+
 The JDK build is cached under `jdk/build/` — a rerun of `./bld jdk` is a
 no-op once the image exists. The JDK version is pinned in `jdk.properties`;
 `patches/jdk-src-release-21.patch` makes the pinned sources compile at

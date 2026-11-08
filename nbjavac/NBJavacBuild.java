@@ -39,7 +39,8 @@ import java.util.zip.ZipFile;
  *   ./bld jdk    clone + build the pinned JDK (jdk.git.commit in jdk.properties)
  *   ./bld jar    build the api/impl jars (compiles under the pinned JDK)
  *   ./bld test   build the jars, then run the test suite under the current JVM
- *   ./bld clean  remove all build products
+ *   ./bld clean   remove all build products
+ *   ./bld cleanAll clean plus the JDK clone and image (rebuild from scratch)
  *
  * Layout: src/ (own sources), test/ (test suite), jdk-src/ (jackpot output),
  * build/ and dist/ (products), jdk/ (JDK clone), lib/ (tool jars).
@@ -190,6 +191,12 @@ public class NBJavacBuild extends BaseProject {
         deleteRecursively(buildDir);
         deleteRecursively(distDir);
         deleteRecursively(jdkSrc);
+    }
+
+    @BuildCommand(summary = "clean plus the JDK clone and image (full rebuild from scratch)")
+    public void cleanAll() throws Exception {
+        clean();
+        deleteRecursively(jdk);
     }
 
     // ---------------------------------------------------------------- pipeline
