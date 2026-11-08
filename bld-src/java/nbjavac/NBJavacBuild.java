@@ -6,6 +6,7 @@ import rife.bld.extension.ExecOperation;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -18,6 +19,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.jar.Attributes;
@@ -34,7 +36,7 @@ import java.util.zip.ZipFile;
  * compiler sources, compile with the pinned javac under the built JDK,
  * split the api/impl jars with the built JDK's ct.sym embedded.
  *
- *   ./bld jdk    clone + build the pinned JDK (JDK_COMMIT)
+ *   ./bld jdk    clone + build the pinned JDK (jdk.git.commit in project.properties)
  *   ./bld jar    build the api/impl jars (compiles under the pinned JDK)
  *   ./bld test   build the jars, then run the test suite under the current JVM
  *   ./bld clean  remove all build products
@@ -45,9 +47,6 @@ import java.util.zip.ZipFile;
  * used interchangeably.
  */
 public class NBJavacBuild extends BaseProject {
-
-    public static final String JDK_COMMIT = "jdk-28+23";
-    public static final String JDK_URL = "https://github.com/openjdk/jdk";
 
     // Same license-exception filter the Ant build uses when copying sources.
     private static final Pattern CLASSPATH_EXCEPTION =
@@ -60,6 +59,11 @@ public class NBJavacBuild extends BaseProject {
     private final Path lib;
     private final Path buildDir;
     private final Path distDir;
+
+    /** Pinned JDK tag, from nbproject/project.properties (shared with the Ant build). */
+    private final String jdkTag;
+    /** Clone URL for the pinned JDK, from nbproject/project.properties. */
+    private final String jdkUrl;
 
     public NBJavacBuild() {
         pkg = "nbjavac";
@@ -74,22 +78,47 @@ public class NBJavacBuild extends BaseProject {
         lib = w.resolve("lib");
         buildDir = nb.resolve("build");
         distDir = nb.resolve("dist");
+
+        // Version pins live in the Ant build's project.properties, so both
+        // builds share one source of truth and CI can key its caches on that
+        // file alone (editing this build script does not invalidate them).
+        Properties pins = loadPins(nb.resolve("nbproject/project.properties"));
+        jdkTag = pins.getProperty("jdk.git.commit");
+        jdkUrl = pins.getProperty("jdk.git.url");
+        if (jdkTag == null || jdkUrl == null) {
+            throw new IllegalStateException(
+                    "Missing jdk.git.commit/jdk.git.url in " + nb.resolve("nbproject/project.properties"));
+        }
+    }
+
+    private static Properties loadPins(Path f) {
+        Properties p = new Properties();
+        try (InputStream in = Files.newInputStream(f)) {
+            p.load(in);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Cannot read version pins from " + f, e);
+        }
+        return p;
     }
 
     // ---------------------------------------------------------------- commands
 
     @BuildCommand(summary = "Clone and build the pinned JDK")
     public void jdk() throws Exception {
-        if (!Files.exists(jdk.resolve(".git"))) {
-            exec(root, "git", "clone", JDK_URL, jdk.toString());
-            exec(jdk, "git", "checkout", JDK_COMMIT);
-            // Make the pinned sources --release 21 compatible (renames the
-            // unnamed variables). A failure here means the patch is stale
-            // and needs fixing; an existing clone is assumed patched.
-            exec(jdk, "git", "apply",
-                    root.resolve("patches/jdk-src-release-21.patch").toString());
-        }
+        // The image is the gate: an existing image means everything (clone,
+        // patch, build) is already in place, so a CI cache restore is a
+        // no-op. Only a missing image requires source, hence the clone.
         if (jdkImage() == null) {
+            if (!Files.exists(jdk.resolve(".git"))) {
+                exec(root, "git", "clone", jdkUrl, jdk.toString());
+                exec(jdk, "git", "checkout", jdkTag);
+                // Make the pinned sources --release 21 compatible (renames
+                // the unnamed variables). A failure here means the patch is
+                // stale and needs fixing; an existing clone is assumed
+                // patched.
+                exec(jdk, "git", "apply",
+                        root.resolve("patches/jdk-src-release-21.patch").toString());
+            }
             exec(jdk, "bash", "configure", "--disable-warnings-as-errors", "--with-native-debug-symbols=none");
             exec(jdk, "make", "-j" + Runtime.getRuntime().availableProcessors(), "images");
         }
@@ -165,14 +194,10 @@ public class NBJavacBuild extends BaseProject {
     // ---------------------------------------------------------------- pipeline
 
     private void downloadTools() throws Exception {
-        download("https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/28.0/tool-28.0.jar",
-                lib.resolve("jackpot.jar"));
-        download("https://repo1.maven.org/maven2/com/dukescript/nbjavac/nb-javac/jdk-21u/nb-javac-jdk-21u.jar",
-                lib.resolve("nb-javac-jdk-21u.jar"));
-        download("https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar",
-                lib.resolve("junit-4.12.jar"));
-        download("https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar",
-                lib.resolve("hamcrest-core-1.3.jar"));
+        download("https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/28.0/tool-28.0.jar", lib.resolve("jackpot.jar"));
+        download("https://repo1.maven.org/maven2/com/dukescript/nbjavac/nb-javac/jdk-21u/nb-javac-jdk-21u.jar", lib.resolve("nb-javac-jdk-21u.jar"));
+        download("https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar", lib.resolve("junit-4.12.jar"));
+        download("https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar", lib.resolve("hamcrest-core-1.3.jar"));
     }
 
     private void jackpot() throws Exception {
@@ -226,8 +251,7 @@ public class NBJavacBuild extends BaseProject {
     private void generateFiles() throws Exception {
         Path flags = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code/Flags.java");
         Path flagsEnum = flags.resolveSibling("FlagsEnum.java");
-        if (Files.exists(flags) && Files.exists(flagsEnum)
-                && Files.getLastModifiedTime(flagsEnum).compareTo(Files.getLastModifiedTime(flags)) >= 0) {
+        if (Files.exists(flags) && Files.exists(flagsEnum) && Files.getLastModifiedTime(flagsEnum).compareTo(Files.getLastModifiedTime(flags)) >= 0) {
             System.out.println("generated files up to date");
             return;
         }
@@ -236,10 +260,8 @@ public class NBJavacBuild extends BaseProject {
         deleteRecursively(ppDir);
         Files.createDirectories(ppDir);
         List<String> cmd = new ArrayList<>(List.of(
-                builtTool("javac"),
-                "-g",
-                "-d", ppDir.toString(),
-                "--release", "21"));
+                builtTool("javac"), "-g", "-d", ppDir.toString(), "--release", "21")
+        );
         for (Path f : collectSources(tools)) {
             String name = f.toString();
             if (name.contains("/propertiesparser/") || name.contains("/flagsgenerator/")) {
@@ -250,13 +272,10 @@ public class NBJavacBuild extends BaseProject {
 
         String cp = classPath(ppDir, tools);
         Path resources = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/resources");
-        exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser",
-                "-compile", resources.resolve("compiler.properties").toString(), resources.toString());
-        exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser",
-                "-compile", resources.resolve("launcher.properties").toString(), resources.toString());
+        exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser", "-compile", resources.resolve("compiler.properties").toString(), resources.toString());
+        exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser", "-compile", resources.resolve("launcher.properties").toString(), resources.toString());
         Path code = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code");
-        exec(root, builtJava(), "-cp", cp, "flagsgenerator.FlagsGenerator",
-                code.resolve("Flags.java").toString(), code.resolve("FlagsEnum.java").toString());
+        exec(root, builtJava(), "-cp", cp, "flagsgenerator.FlagsGenerator", code.resolve("Flags.java").toString(), code.resolve("FlagsEnum.java").toString());
     }
 
     private void reflectShims() throws Exception {
@@ -323,7 +342,7 @@ public class NBJavacBuild extends BaseProject {
         Files.createDirectories(distDir);
 
         Path classes = buildDir.resolve("classes");
-        String ver = JDK_COMMIT;
+        String ver = jdkTag;
         try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + "-api.jar")))) {
             writeManifest(z, true);
             addMatching(z, classes, NBJavacBuild::apiEntry);
@@ -400,11 +419,11 @@ public class NBJavacBuild extends BaseProject {
     }
 
     private Path implJar() {
-        return distDir.resolve("nb-javac-" + JDK_COMMIT + "-impl.jar");
+        return distDir.resolve("nb-javac-" + jdkTag + "-impl.jar");
     }
 
     private Path apiJar() {
-        return distDir.resolve("nb-javac-" + JDK_COMMIT + "-api.jar");
+        return distDir.resolve("nb-javac-" + jdkTag + "-api.jar");
     }
 
     private static String classPath(Path... paths) {
@@ -522,8 +541,7 @@ public class NBJavacBuild extends BaseProject {
         if (p.startsWith("javax/tools/") && !p.substring("javax/tools/".length()).contains("/")) {
             return true;
         }
-        if (p.startsWith("jdk/internal/")
-                && !p.substring("jdk/internal/".length()).contains("/")
+        if (p.startsWith("jdk/internal/") && !p.substring("jdk/internal/".length()).contains("/")
                 && p.substring("jdk/internal/".length()).startsWith("PreviewFeature")) {
             return true;
         }
@@ -547,8 +565,7 @@ public class NBJavacBuild extends BaseProject {
         if (p.startsWith("jdk/internal/shellsupport/")) {
             return true;
         }
-        if (p.startsWith("jdk/internal/")
-                && !p.substring("jdk/internal/".length()).contains("/")
+        if (p.startsWith("jdk/internal/") && !p.substring("jdk/internal/".length()).contains("/")
                 && p.substring("jdk/internal/".length()).startsWith("PreviewFeature")) {
             return true;
         }
