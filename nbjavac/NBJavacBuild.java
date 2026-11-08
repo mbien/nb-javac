@@ -145,7 +145,7 @@ public class NBJavacBuild extends BaseProject {
         downloadTools();
         jackpot();
         generateFiles();
-        reflectShims();
+        runtimePayload();
         compileMain();
         buildJars();
     }
@@ -214,6 +214,10 @@ public class NBJavacBuild extends BaseProject {
 
     private void downloadTools() throws Exception {
         download("https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/28.0/tool-28.0.jar", lib.resolve("jackpot.jar"));
+        // Legacy payload: the pinned javac references the repackaged
+        // nbjavac.sun.annotation classes at compile time, and NetBeans loads
+        // com.sun.tools.classfile from the impl jar at runtime (apache/netbeans#9368
+        // tracks retiring the latter).
         download("https://repo1.maven.org/maven2/com/dukescript/nbjavac/nb-javac/jdk-21u/nb-javac-jdk-21u.jar", lib.resolve("nb-javac-jdk-21u.jar"));
         download("https://repo1.maven.org/maven2/junit/junit/4.12/junit-4.12.jar", lib.resolve("junit-4.12.jar"));
         download("https://repo1.maven.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar", lib.resolve("hamcrest-core-1.3.jar"));
@@ -296,10 +300,12 @@ public class NBJavacBuild extends BaseProject {
         exec(root, builtJava(), "-cp", cp, "flagsgenerator.FlagsGenerator", code.resolve("Flags.java").toString(), code.resolve("FlagsEnum.java").toString());
     }
 
-    private void reflectShims() throws Exception {
-        Path reflect = lib.resolve("reflect");
-        deleteRecursively(reflect);
-        unzipInclude(lib.resolve("nb-javac-jdk-21u.jar"), reflect,
+    /** Legacy payload from the old release: compile-time input
+     * (nbjavac.sun.annotation) and impl-jar runtime payload (see downloadTools). */
+    private void runtimePayload() throws Exception {
+        Path payload = lib.resolve("payload");
+        deleteRecursively(payload);
+        unzipInclude(lib.resolve("nb-javac-jdk-21u.jar"), payload,
                 "nbjavac/sun/annotation/", "com/sun/tools/classfile/", "com/sun/tools/javap/");
     }
 
@@ -317,7 +323,9 @@ public class NBJavacBuild extends BaseProject {
                 builtTool("javac"),
                 "-g",
                 "-encoding", "UTF-8",
-                "-cp", lib.resolve("reflect").toString(),
+                // The pinned javac references the repackaged
+                // nbjavac.sun.annotation classes (see runtimePayload).
+                "-cp", lib.resolve("payload").toString(),
                 "-d", classes.toString(),
                 "--release", "21",
                 "--limit-modules", "java.base"));
@@ -371,7 +379,7 @@ public class NBJavacBuild extends BaseProject {
             addMatching(z, classes, NBJavacBuild::implEntry);
             addTree(z, ctSymDir, "META-INF/ct.sym/");
             addDoc(z, "README.md");
-            addTree(z, lib.resolve("reflect"), "");
+            addTree(z, lib.resolve("payload"), "");
         }
     }
 
