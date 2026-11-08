@@ -12,7 +12,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -20,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.jar.Attributes;
@@ -29,26 +29,36 @@ import java.util.jar.Manifest;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-/**
- * bld build for nb-javac.
- *
- * Pipeline: clone the pinned JDK, build it, copy the compiler sources with
- * the jackpot hints applied, compile with the pinned javac, and split the
- * api/impl jars with the built JDK's ct.sym embedded.
- *
- *   ./bld jdk    clone + build the pinned JDK (jdk.git.commit in jdk.properties)
- *   ./bld jar    build the api/impl jars (compiles under the pinned JDK)
- *   ./bld test   build the jars, then run the test suite under the current JVM
- *   ./bld clean   remove all build products
- *   ./bld cleanAll clean plus the JDK clone and image (rebuild from scratch)
- *
- * Layout: src/ (own sources), test/ (test suite), jdk-src/ (jackpot output),
- * build/ and dist/ (products), jdk/ (JDK clone), lib/ (tool jars).
- * Everything except src/, test/, jdk.properties and patches/ is git-ignored.
- */
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+/// Builds nb-javac.
+///
+/// The pipeline clones and builds the pinned JDK, copies the compiler
+/// sources with the Jackpot hints applied, compiles them with the pinned
+/// `javac`, and splits the API and implementation JARs with the built JDK's
+/// `ct.sym` embedded.
+///
+/// Available commands:
+///
+/// - `./bld jdk` - clone and build the pinned JDK (`jdk.git.commit` in `jdk.properties`)
+/// - `./bld jar` - build the API and implementation JARs using the pinned JDK
+/// - `./bld test` - build the JARs, then run the test suite under the current JVM
+/// - `./bld clean` - remove all build products
+/// - `./bld cleanAll` - clean and remove the JDK clone and image for a rebuild from scratch
+///
+/// Project layout:
+///
+/// - `src/` - project sources
+/// - `test/` - test suite
+/// - `jdk-src/` - Jackpot output
+/// - `build/` and `dist/` - build products
+/// - `jdk/` - JDK clone
+/// - `lib/` - tool JARs
+///
 public class NBJavacBuild extends BaseProject {
 
-    // Same license-exception filter the Ant build uses when copying sources.
+    // Matches the "Classpath exception" clause in a file's license header.
     private static final Pattern CLASSPATH_EXCEPTION =
             Pattern.compile("particular *file *as *subject *to *the.*Classpath.*exception");
 
@@ -88,8 +98,7 @@ public class NBJavacBuild extends BaseProject {
         jdkTag = pins.getProperty("jdk.git.commit");
         jdkUrl = pins.getProperty("jdk.git.url");
         if (jdkTag == null || jdkUrl == null) {
-            throw new IllegalStateException(
-                    "Missing jdk.git.commit/jdk.git.url in jdk.properties");
+            throw new IllegalStateException("Missing jdk.git.commit/jdk.git.url in jdk.properties");
         }
     }
 
@@ -112,21 +121,15 @@ public class NBJavacBuild extends BaseProject {
         // no-op. Only a missing image requires source, hence the clone.
         if (jdkImage() == null) {
             if (Files.notExists(jdk.resolve(".git"))) {
-                // Depth-1 clone of the pinned tag: nothing downstream needs
-                // history (the patch is the only source modification), and
-                // it skips the ~1G of openjdk/jdk history.
-                exec(root, "git", "clone", "--depth", "1", "--branch", jdkTag,
-                        jdkUrl, jdk.toString());
+                // Depth-1 clone of the pinned tag
+                exec(root, "git", "clone", "--depth", "5", "--branch", jdkTag, jdkUrl, jdk.toString());
                 // Make the pinned sources --release 21 compatible (renames
                 // the unnamed variables). A failure here means the patch is
                 // stale and needs fixing; an existing clone is assumed
                 // patched.
-                exec(jdk, "git", "apply",
-                        root.resolve("patches/jdk-src-release-21.patch").toString());
+                exec(jdk, "git", "apply", root.resolve("patches/jdk-src-release-21.patch").toString());
             }
             exec(jdk, "bash", "configure", "--disable-warnings-as-errors", "--with-native-debug-symbols=none");
-            // The JDK build rejects GNU's -j flag and figures out the job
-            // count on its own, so a plain make images is all it needs.
             exec(jdk, "make", "images");
         }
         System.out.println("JDK image: " + jdkImage());
@@ -166,11 +169,10 @@ public class NBJavacBuild extends BaseProject {
         }
         exec(root, cmd.toArray(String[]::new));
 
-        // Run the suite in the JVM that runs this build (CI: JDK 21, the floor).
+        // Run the suite in the JVM that runs this build (CI: JDK 21+, the floor).
         // --limit-modules is required: without it the JVM refuses to load
         // classpath classes from packages owned by a resolved module
-        // (com.sun.source.*, com.sun.tools.*), same as the Ant build's
-        // run.jvmargs.jdk17.
+        // (com.sun.source.*, com.sun.tools.*).
         List<String> tests = new ArrayList<>();
         try (Stream<Path> s = Files.walk(testClasses)) {
             s.filter(Files::isRegularFile)
@@ -221,7 +223,7 @@ public class NBJavacBuild extends BaseProject {
         deleteRecursively(jdkSrc);
         Files.createDirectories(jdkSrc);
 
-        for (String module : new String[]{"java.compiler", "jdk.compiler"}) {
+        for (String module : List.of("java.compiler", "jdk.compiler")) {
             Path moduleDir = jdk.resolve("src").resolve(module);
             try (Stream<Path> s = Files.walk(moduleDir)) {
                 for (Path f : (Iterable<Path>) s.filter(Files::isRegularFile)::iterator) {
@@ -236,11 +238,10 @@ public class NBJavacBuild extends BaseProject {
 
         Path ecs = jdk.resolve("src/java.base/share/classes/java/lang/runtime/ExactConversionsSupport.java");
         if (Files.exists(ecs) && hasLicenseException(ecs)) {
-            String content = new String(Files.readAllBytes(ecs), StandardCharsets.UTF_8)
-                    .replace("package java.lang.runtime;", "package nbjavac;");
+            String content = Files.readString(ecs, UTF_8).replace("package java.lang.runtime;", "package nbjavac;");
             Path target = jdkSrc.resolve("java.base/share/classes/java/lang/runtime/ExactConversionsSupport.java");
             Files.createDirectories(target.getParent());
-            Files.write(target, content.getBytes(StandardCharsets.UTF_8));
+            Files.write(target, content.getBytes(UTF_8));
         }
 
         String sourcePath = classPath(
@@ -321,8 +322,8 @@ public class NBJavacBuild extends BaseProject {
         }
         exec(root, cmd.toArray(String[]::new));
 
-        // Same resource copy as the Ant build's -do-compile: non-Java files
-        // (META-INF/services, .properties resources) join build/classes.
+        // Non-Java files (META-INF/services, .properties resources)
+        // join build/classes.
         copyResources(src, classes);
         copyResources(jdkSrc.resolve("java.compiler/share/classes"), classes);
         copyResources(jdkSrc.resolve("jdk.compiler/share/classes"), classes);
@@ -360,14 +361,12 @@ public class NBJavacBuild extends BaseProject {
             writeManifest(z, true);
             addMatching(z, classes, NBJavacBuild::apiEntry);
             addDoc(z, "README.md");
-            addDoc(z, "SECURITY.md");
         }
         try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + "-impl.jar")))) {
             writeManifest(z, false);
             addMatching(z, classes, NBJavacBuild::implEntry);
             addTree(z, ctSymDir, "META-INF/ct.sym/");
             addDoc(z, "README.md");
-            addDoc(z, "SECURITY.md");
             addTree(z, lib.resolve("reflect"), "");
         }
     }
@@ -463,7 +462,7 @@ public class NBJavacBuild extends BaseProject {
         return out;
     }
 
-    /** Same excludes as the Ant build's multirootfileset. */
+    /** Source files excluded from compilation. */
     private static boolean excluded(Path rel) {
         String p = rel.toString().replace('\\', '/');
         if (p.endsWith("module-info.java")) {
@@ -483,7 +482,7 @@ public class NBJavacBuild extends BaseProject {
     }
 
     private static boolean hasLicenseException(Path f) throws IOException {
-        String content = new String(Files.readAllBytes(f), java.nio.charset.StandardCharsets.ISO_8859_1);
+        String content = Files.readString(f, ISO_8859_1);
         return CLASSPATH_EXCEPTION.matcher(content).find();
     }
 
@@ -539,7 +538,7 @@ public class NBJavacBuild extends BaseProject {
         }
     }
 
-    /** Same includes as the Ant build's api jar fileset. */
+    /** Entries that belong to the api jar. */
     private static boolean apiEntry(String p) {
         if (p.startsWith("com/sun/source/")) {
             return true;
@@ -563,7 +562,7 @@ public class NBJavacBuild extends BaseProject {
         return false;
     }
 
-    /** Same includes as the Ant build's impl jar fileset. */
+    /** Entries that belong to the impl jar. */
     private static boolean implEntry(String p) {
         if (p.startsWith("META-INF/services/")) {
             return true;
@@ -592,8 +591,7 @@ public class NBJavacBuild extends BaseProject {
         z.closeEntry();
     }
 
-    private void addMatching(JarOutputStream z, Path dir,
-                             java.util.function.Predicate<String> filter) throws IOException {
+    private void addMatching(JarOutputStream z, Path dir, Predicate<String> filter) throws IOException {
         if (!Files.isDirectory(dir)) {
             return;
         }
