@@ -153,7 +153,9 @@ jobs:
             problem-matcher: false
 
       - name: Build NetBeans with latest nb-javac
-        run: ant -f netbeans build -Dnbjavac.class.path=`pwd`/dist/nb-javac-*.jar
+        run: |
+          TAG=$(grep '^jdk.git.commit=' jdk.properties | cut -d= -f2)
+          ant -f netbeans build -Dnbjavac.class.path=`pwd`/dist/nb-javac-${TAG}.jar
 
       - name: Setup Xvfb
         run: |
@@ -162,5 +164,6 @@ jobs:
 
       - name: Test with Commit Validation
         run: |
-          NB_JAVAC=`pwd`/dist/nb-javac-*.jar
+          TAG=$(grep '^jdk.git.commit=' jdk.properties | cut -d= -f2)
+          NB_JAVAC=`pwd`/dist/nb-javac-${TAG}.jar
           ant -f netbeans commit-validation -Dnbjavac.class.path=$NB_JAVAC

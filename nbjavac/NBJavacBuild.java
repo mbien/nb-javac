@@ -141,7 +141,7 @@ public class NBJavacBuild extends BaseProject {
         System.out.println("JDK image: " + jdkImage());
     }
 
-    @BuildCommand(summary = "Build the api/impl jars (compiles under the pinned JDK)")
+    @BuildCommand(summary = "Build the jars (compiles under the pinned JDK)")
     public void jar() throws Exception {
         jdk();
         downloadTools();
@@ -160,7 +160,7 @@ public class NBJavacBuild extends BaseProject {
         List<Path> testSources = collectSources(tests);
         String cp = classPath(
                 buildDir.resolve("classes"),
-                implJar(),
+                mainJar(),
                 lib.resolve("junit-4.12.jar"),
                 lib.resolve("hamcrest-core-1.3.jar"));
         List<String> cmd = new ArrayList<>(List.of(
@@ -192,7 +192,7 @@ public class NBJavacBuild extends BaseProject {
         List<String> run = new ArrayList<>(List.of(
                 currentJava(),
                 "--limit-modules", "java.base,java.xml,jdk.zipfs",
-                "-cp", classPath(buildDir.resolve("classes"), implJar(),
+                "-cp", classPath(buildDir.resolve("classes"), mainJar(),
                         lib.resolve("junit-4.12.jar"), lib.resolve("hamcrest-core-1.3.jar"), testClasses),
                 "org.junit.runner.JUnitCore"));
         run.addAll(tests);
@@ -367,6 +367,8 @@ public class NBJavacBuild extends BaseProject {
         Path ctSymDir = buildDir.resolve("ct.sym");
         deleteRecursively(ctSymDir);
         unzipAll(ctSym, ctSymDir);
+        // dist is output-only: wipe it so renames don't leave stale jars.
+        deleteRecursively(distDir);
         Files.createDirectories(distDir);
 
         Path classes = buildDir.resolve("classes");
@@ -376,28 +378,69 @@ public class NBJavacBuild extends BaseProject {
             addMatching(z, classes, NBJavacBuild::apiEntry);
             addDoc(z, "README.md");
         }
-        try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + "-impl.jar")))) {
+        // The main jar is unclassified (no -impl suffix): that is the name the
+        // pom pairs with on Central
+        try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(distDir.resolve("nb-javac-" + ver + ".jar")))) {
             writeManifest(z);
             addMatching(z, classes, NBJavacBuild::implEntry);
             addTree(z, ctSymDir, "META-INF/ct.sym/");
             addDoc(z, "README.md");
             addTree(z, lib.resolve("payload"), "");
         }
+        buildSourcesJar();
+        buildJavadocJar();
+        buildPom();
         checksums();
     }
 
-    /** Maven-repo-style .sha256 files (bare hash, no filename, no newline —
-     * matching the .sha1/.md5 convention on Central) next to the dist jars.
-     * Reproducible: the jars are, so these are too. */
+    /** -sources.jar: everything we compile (wrappers, the Jackpot-processed
+     * compiler sources, the langtools generator sources) plus the README. */
+    private void buildSourcesJar() throws Exception {
+        try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(sourcesJar()))) {
+            writeManifest(z);
+            addMatching(z, src, p -> p.endsWith(".java"));
+            addMatching(z, jdkSrc, p -> p.endsWith(".java"));
+            addMatching(z, jdk.resolve("make/langtools"), p -> p.endsWith(".java"));
+            addDoc(z, "README.md");
+            addDoc(z, "LICENSE.txt");
+        }
+    }
+
+    /** -javadoc.jar: Central requires the artifact; real javadoc of javac's
+     * internals is not meaningful, so this is the explicitly-allowed
+     * placeholder (README only), same as the previous releases. */
+    private void buildJavadocJar() throws Exception {
+        try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(javadocJar()))) {
+            writeManifest(z);
+            addDoc(z, "README.md");
+            addDoc(z, "LICENSE.txt");
+        }
+    }
+
+    /** The Maven pom for the Central upload: the resources/nb-javac.pom
+     * template with @version@ replaced by the jdk tag. */
+    private void buildPom() throws IOException {
+        String pom = Files.readString(root.resolve("resources/nb-javac.pom")).replace("@version@", jdkTag);
+        Files.writeString(pomFile(), pom);
+    }
+
+    /** Maven-repo-style checksum files (bare hash, no filename, no newline —
+     * Central's convention) next to every dist jar. Central requires .md5 and
+     * .sha1; .sha256 is the supported modern one. Reproducible: the jars are,
+     * so these are too. */
     private void checksums() throws Exception {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        for (Path jar : List.of(apiJar(), implJar())) {
-            byte[] digest = md.digest(Files.readAllBytes(jar));
-            StringBuilder hex = new StringBuilder(digest.length * 2);
-            for (byte b : digest) {
-                hex.append(String.format("%02x", b));
+        for (Path jar : List.of(apiJar(), mainJar(), sourcesJar(), javadocJar(), pomFile())) {
+            for (String alg : List.of("MD5", "SHA-1", "SHA-256")) {
+                MessageDigest md = MessageDigest.getInstance(alg);
+                byte[] digest = md.digest(Files.readAllBytes(jar));
+                StringBuilder hex = new StringBuilder(digest.length * 2);
+                for (byte b : digest) {
+                    hex.append("%02x".formatted(b));
+                }
+                Files.writeString(
+                        jar.resolveSibling(jar.getFileName() + "." + alg.toLowerCase().replace("-", "")),
+                        hex.toString());
             }
-            Files.writeString(jar.resolveSibling(jar.getFileName() + ".sha256"), hex.toString());
         }
     }
 
@@ -460,12 +503,24 @@ public class NBJavacBuild extends BaseProject {
         return System.getProperty("java.home") + "/bin/java";
     }
 
-    private Path implJar() {
-        return distDir.resolve("nb-javac-" + jdkTag + "-impl.jar");
+    private Path mainJar() {
+        return distDir.resolve("nb-javac-" + jdkTag + ".jar");
     }
 
     private Path apiJar() {
         return distDir.resolve("nb-javac-" + jdkTag + "-api.jar");
+    }
+
+    private Path sourcesJar() {
+        return distDir.resolve("nb-javac-" + jdkTag + "-sources.jar");
+    }
+
+    private Path javadocJar() {
+        return distDir.resolve("nb-javac-" + jdkTag + "-javadoc.jar");
+    }
+
+    private Path pomFile() {
+        return distDir.resolve("nb-javac-" + jdkTag + ".pom");
     }
 
     private static String classPath(Path... paths) {
