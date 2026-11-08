@@ -32,19 +32,18 @@ import java.util.zip.ZipFile;
 /**
  * bld build for nb-javac.
  *
- * Pipeline: clone the pinned JDK, build it, apply the jackpot hints to the
- * compiler sources, compile with the pinned javac under the built JDK,
- * split the api/impl jars with the built JDK's ct.sym embedded.
+ * Pipeline: clone the pinned JDK, build it, copy the compiler sources with
+ * the jackpot hints applied, compile with the pinned javac, and split the
+ * api/impl jars with the built JDK's ct.sym embedded.
  *
- *   ./bld jdk    clone + build the pinned JDK (jdk.git.commit in project.properties)
+ *   ./bld jdk    clone + build the pinned JDK (jdk.git.commit in jdk.properties)
  *   ./bld jar    build the api/impl jars (compiles under the pinned JDK)
  *   ./bld test   build the jars, then run the test suite under the current JVM
  *   ./bld clean  remove all build products
  *
- * The directory layout is intentionally identical to the Ant build (build.xml):
- * both share src/ (jackpot output), lib/ (tool jars) and
- * make/langtools/netbeans/nb-javac/{build,dist}, so the two builds can be
- * used interchangeably.
+ * Layout: src/ (own sources), test/ (test suite), jdk-src/ (jackpot output),
+ * build/ and dist/ (products), jdk/ (JDK clone), lib/ (tool jars).
+ * Everything except src/, test/, jdk.properties and patches/ is git-ignored.
  */
 public class NBJavacBuild extends BaseProject {
 
@@ -53,16 +52,17 @@ public class NBJavacBuild extends BaseProject {
             Pattern.compile("particular *file *as *subject *to *the.*Classpath.*exception");
 
     private final Path root;
-    private final Path nb;
     private final Path jdk;
     private final Path src;
+    private final Path jdkSrc;
+    private final Path tests;
     private final Path lib;
     private final Path buildDir;
     private final Path distDir;
 
-    /** Pinned JDK tag, from nbproject/project.properties (shared with the Ant build). */
+    /** Pinned JDK tag, from jdk.properties. */
     private final String jdkTag;
-    /** Clone URL for the pinned JDK, from nbproject/project.properties. */
+    /** Clone URL for the pinned JDK, from jdk.properties. */
     private final String jdkUrl;
 
     public NBJavacBuild() {
@@ -72,22 +72,23 @@ public class NBJavacBuild extends BaseProject {
 
         Path w = workDirectory().toPath();
         root = w;
-        nb = w.resolve("make/langtools/netbeans/nb-javac");
         jdk = w.resolve("jdk");
         src = w.resolve("src");
+        jdkSrc = w.resolve("jdk-src");
+        tests = w.resolve("test");
         lib = w.resolve("lib");
-        buildDir = nb.resolve("build");
-        distDir = nb.resolve("dist");
+        buildDir = w.resolve("build");
+        distDir = w.resolve("dist");
 
-        // Version pins live in the Ant build's project.properties, so both
-        // builds share one source of truth and CI can key its caches on that
-        // file alone (editing this build script does not invalidate them).
-        Properties pins = loadPins(nb.resolve("nbproject/project.properties"));
+        // The version pins live in jdk.properties so CI can key its JDK
+        // cache on that file (plus the patch and hint) without invalidating
+        // the cache when this build script changes.
+        Properties pins = loadPins(root.resolve("jdk.properties"));
         jdkTag = pins.getProperty("jdk.git.commit");
         jdkUrl = pins.getProperty("jdk.git.url");
         if (jdkTag == null || jdkUrl == null) {
             throw new IllegalStateException(
-                    "Missing jdk.git.commit/jdk.git.url in " + nb.resolve("nbproject/project.properties"));
+                    "Missing jdk.git.commit/jdk.git.url in jdk.properties");
         }
     }
 
@@ -141,7 +142,7 @@ public class NBJavacBuild extends BaseProject {
         jar();
         Path testClasses = buildDir.resolve("test/classes");
         deleteRecursively(testClasses);
-        List<Path> testSources = collectSources(nb.resolve("test"));
+        List<Path> testSources = collectSources(tests);
         String cp = classPath(
                 buildDir.resolve("classes"),
                 implJar(),
@@ -188,7 +189,7 @@ public class NBJavacBuild extends BaseProject {
     public void clean() throws Exception {
         deleteRecursively(buildDir);
         deleteRecursively(distDir);
-        deleteRecursively(src);
+        deleteRecursively(jdkSrc);
     }
 
     // ---------------------------------------------------------------- pipeline
@@ -201,19 +202,19 @@ public class NBJavacBuild extends BaseProject {
     }
 
     private void jackpot() throws Exception {
-        if (Files.exists(src.resolve("jackpot-done"))) {
+        if (Files.exists(jdkSrc.resolve("jackpot-done"))) {
             System.out.println("jackpot already applied");
             return;
         }
-        deleteRecursively(src);
-        Files.createDirectories(src);
+        deleteRecursively(jdkSrc);
+        Files.createDirectories(jdkSrc);
 
         for (String module : new String[]{"java.compiler", "jdk.compiler"}) {
             Path moduleDir = jdk.resolve("src").resolve(module);
             try (Stream<Path> s = Files.walk(moduleDir)) {
                 for (Path f : (Iterable<Path>) s.filter(Files::isRegularFile)::iterator) {
                     if (hasLicenseException(f)) {
-                        Path target = src.resolve(module).resolve(moduleDir.relativize(f));
+                        Path target = jdkSrc.resolve(module).resolve(moduleDir.relativize(f));
                         Files.createDirectories(target.getParent());
                         Files.copy(f, target);
                     }
@@ -225,31 +226,31 @@ public class NBJavacBuild extends BaseProject {
         if (Files.exists(ecs) && hasLicenseException(ecs)) {
             String content = new String(Files.readAllBytes(ecs), StandardCharsets.UTF_8)
                     .replace("package java.lang.runtime;", "package nbjavac;");
-            Path target = src.resolve("java.base/share/classes/java/lang/runtime/ExactConversionsSupport.java");
+            Path target = jdkSrc.resolve("java.base/share/classes/java/lang/runtime/ExactConversionsSupport.java");
             Files.createDirectories(target.getParent());
             Files.write(target, content.getBytes(StandardCharsets.UTF_8));
         }
 
         String sourcePath = classPath(
-                nb.resolve("src"),
-                src.resolve("jdk.compiler/share/classes"),
-                src.resolve("java.compiler/share/classes"),
-                src.resolve("java.base/share/classes"));
+                src,
+                jdkSrc.resolve("jdk.compiler/share/classes"),
+                jdkSrc.resolve("java.compiler/share/classes"),
+                jdkSrc.resolve("java.base/share/classes"));
         exec(root, builtJava(),
                 "-cp", lib.resolve("jackpot.jar").toString(),
                 "org.netbeans.modules.jackpot30.cmdline.Main",
-                "-hint-file", nb.resolve("src/META-INF/upgrade/nbjavac.hint").toString(),
+                "-hint-file", src.resolve("META-INF/upgrade/nbjavac.hint").toString(),
                 "-sourcepath", sourcePath,
                 "-source", "8",
                 "--apply",
-                src.resolve("java.base/share/classes").toString(),
-                src.resolve("java.compiler/share/classes").toString(),
-                src.resolve("jdk.compiler/share/classes").toString());
-        Files.writeString(src.resolve("jackpot-done"), "Jackpot done!");
+                jdkSrc.resolve("java.base/share/classes").toString(),
+                jdkSrc.resolve("java.compiler/share/classes").toString(),
+                jdkSrc.resolve("jdk.compiler/share/classes").toString());
+        Files.writeString(jdkSrc.resolve("jackpot-done"), "Jackpot done!");
     }
 
     private void generateFiles() throws Exception {
-        Path flags = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code/Flags.java");
+        Path flags = jdkSrc.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code/Flags.java");
         Path flagsEnum = flags.resolveSibling("FlagsEnum.java");
         if (Files.exists(flags) && Files.exists(flagsEnum) && Files.getLastModifiedTime(flagsEnum).compareTo(Files.getLastModifiedTime(flags)) >= 0) {
             System.out.println("generated files up to date");
@@ -271,10 +272,10 @@ public class NBJavacBuild extends BaseProject {
         exec(root, cmd.toArray(new String[0]));
 
         String cp = classPath(ppDir, tools);
-        Path resources = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/resources");
+        Path resources = jdkSrc.resolve("jdk.compiler/share/classes/com/sun/tools/javac/resources");
         exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser", "-compile", resources.resolve("compiler.properties").toString(), resources.toString());
         exec(root, builtJava(), "-cp", cp, "propertiesparser.PropertiesParser", "-compile", resources.resolve("launcher.properties").toString(), resources.toString());
-        Path code = src.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code");
+        Path code = jdkSrc.resolve("jdk.compiler/share/classes/com/sun/tools/javac/code");
         exec(root, builtJava(), "-cp", cp, "flagsgenerator.FlagsGenerator", code.resolve("Flags.java").toString(), code.resolve("FlagsEnum.java").toString());
     }
 
@@ -289,10 +290,10 @@ public class NBJavacBuild extends BaseProject {
         Path classes = buildDir.resolve("classes");
         deleteRecursively(classes);
         List<Path> files = collectSources(
-                nb.resolve("src"),
-                src.resolve("java.base/share/classes"),
-                src.resolve("java.compiler/share/classes"),
-                src.resolve("jdk.compiler/share/classes"));
+                src,
+                jdkSrc.resolve("java.base/share/classes"),
+                jdkSrc.resolve("java.compiler/share/classes"),
+                jdkSrc.resolve("jdk.compiler/share/classes"));
         // Compiled with the pinned javac at --release 21: the patched
         // sources (patches/jdk-src-release-21.patch) are release-21 clean.
         List<String> cmd = new ArrayList<>(List.of(
@@ -310,9 +311,9 @@ public class NBJavacBuild extends BaseProject {
 
         // Same resource copy as the Ant build's -do-compile: non-Java files
         // (META-INF/services, .properties resources) join build/classes.
-        copyResources(nb.resolve("src"), classes);
-        copyResources(src.resolve("java.compiler/share/classes"), classes);
-        copyResources(src.resolve("jdk.compiler/share/classes"), classes);
+        copyResources(src, classes);
+        copyResources(jdkSrc.resolve("java.compiler/share/classes"), classes);
+        copyResources(jdkSrc.resolve("jdk.compiler/share/classes"), classes);
     }
 
     private void copyResources(Path from, Path to) throws IOException {

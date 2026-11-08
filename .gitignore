@@ -1,29 +1,19 @@
+# build products
 /build/
 /dist/
 /jdk/
+/jdk-src/
+
+# lib/: everything is build-fetched; keep only the bld wrapper files
 lib/*
 !lib/bld/
 lib/bld/*
 !lib/bld/bld-wrapper.jar
 !lib/bld/bld-wrapper.properties
-/src/
-/jackpot.jar
+
+# IDE noise
 /.idea/
 /.vscode/
-nbproject/private/
-/webrev
-/.src-rev
-/.jib/
+/.metadata/
+/.recommenders/
 .DS_Store
-.metadata/
-.recommenders/
-test/nashorn/script/external
-test/nashorn/lib
-NashornProfile.txt
-**/JTreport/**
-**/JTwork/**
-**/compiler.jar
-/make/langtools/netbeans/nb-javac/build/
-/make/langtools/netbeans/nb-javac/dist/
-/make/langtools/netbeans/nb-javac/nbproject/private/
-.gradle
