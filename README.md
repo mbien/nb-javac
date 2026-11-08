@@ -3,8 +3,8 @@ consumer is Apache NetBeans, which uses it for its Java editor integration.
 
 This project builds a pinned JDK (see `jdk.properties`), compiles the compiler
 from that JDK's sources with its own javac at `--release 21`, and splits the
-result into api/impl jars — 1:1 identical to the official `javac` of that JDK, but
-runnable on any JDK 21+.
+result into the compiler jar and a public-api jar — 1:1 identical to the
+official `javac` of that JDK, but runnable on any JDK 21+.
 
 ## Building
 
@@ -13,7 +13,7 @@ tooling).
 
 ```
 $ ./bld jdk    # first time only: clone + build the pinned JDK
-$ ./bld jar    # -> dist/nb-javac-<jdk-tag>-api.jar / -impl.jar
+$ ./bld jar    # -> dist/nb-javac-<jdk-tag>.jar / -api.jar
 $ ./bld test   # builds the jars, then runs the test suite
 ```
 
@@ -23,10 +23,8 @@ $ ./bld cleanAll   # clean plus the JDK clone and image (rebuild from scratch)
 ```
 
 The JDK build is cached under `jdk/build/` — a rerun of `./bld jdk` is a
-no-op once the image exists. The JDK version is pinned in `jdk.properties`;
-`patches/jdk-src-release-21.patch` makes the pinned sources compile at
-`--release 21`. Jackpot output lands in `jdk-src/`, build products in
-`build/` and `dist/` (all git-ignored).
+no-op once the image exists. Jackpot output lands in `jdk-src/`, build products in
+`build/` and `dist/`.
 
 ## History
 
