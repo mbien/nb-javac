@@ -17,3 +17,5 @@ lib/bld/*
 /.metadata/
 /.recommenders/
 .DS_Store
+
+private

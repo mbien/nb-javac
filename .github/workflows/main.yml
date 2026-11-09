@@ -25,13 +25,14 @@ jobs:
             java-version: 27
             problem-matcher: false
 
-      # The JDK build cache is keyed on the pin, the source patch and the
-      # jackpot hint, so editing the build script or this workflow does not
+      # The JDK build cache is keyed on the pin, the source patches (the
+      # whole patches/ set, concatenated in glob order) and the jackpot
+      # hint, so editing the build script or this workflow does not
       # invalidate it.
       - name: Compute JDK cache key
         id: jdk-cache-key
         run: |
-          KEY=$(cat jdk.properties patches/jdk-src-release-21.patch src/META-INF/upgrade/nbjavac.hint | sha256sum | cut -d' ' -f1)
+          KEY=$(cat jdk.properties patches/*.patch src/META-INF/upgrade/nbjavac.hint | sha256sum | cut -d' ' -f1)
           echo "key=jdk-${KEY}" >> "$GITHUB_OUTPUT"
 
       # The image is what jdk() gates on, so a restore makes the whole
@@ -123,7 +124,7 @@ jobs:
       - name: Compute JDK cache key
         id: jdk-cache-key
         run: |
-          KEY=$(cat jdk.properties patches/jdk-src-release-21.patch src/META-INF/upgrade/nbjavac.hint | sha256sum | cut -d' ' -f1)
+          KEY=$(cat jdk.properties patches/*.patch src/META-INF/upgrade/nbjavac.hint | sha256sum | cut -d' ' -f1)
           echo "key=jdk-${KEY}" >> "$GITHUB_OUTPUT"
 
       - name: Restore JDK image and jackpot output

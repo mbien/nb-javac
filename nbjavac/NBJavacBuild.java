@@ -94,8 +94,8 @@ public class NBJavacBuild extends BaseProject {
         distDir = w.resolve("dist");
 
         // The version pins live in jdk.properties so CI can key its JDK
-        // cache on that file (plus the patch and hint) without invalidating
-        // the cache when this build script changes.
+        // cache on that file (plus the patches and hint) without
+        // invalidating the cache when this build script changes.
         Properties pins = loadPins(root.resolve("jdk.properties"));
         jdkTag = pins.getProperty("jdk.git.commit");
         jdkUrl = pins.getProperty("jdk.git.url");
@@ -125,11 +125,11 @@ public class NBJavacBuild extends BaseProject {
             if (Files.notExists(jdk.resolve(".git"))) {
                 // Depth-5 clone of the pinned tag
                 exec(root, "git", "clone", "--depth", "5", "--branch", jdkTag, jdkUrl, jdk.toString());
-                // Make the pinned sources --release 21 compatible (renames
-                // the unnamed variables). A failure here means the patch is
-                // stale and needs fixing; an existing clone is assumed
-                // patched.
-                exec(jdk, "git", "apply", root.resolve("patches/jdk-src-release-21.patch").toString());
+                // Patches apply one by one in filename order
+                // An existing clone is assumed already patched.
+                for (Path patch : listPatches(root.resolve("patches"))) {
+                    applyPatch(patch);
+                }
             }
             // Headless-only: the image exists to build and run javac, so the
             // X11 GUI support is dead weight (and its header dependency is a
@@ -213,6 +213,43 @@ public class NBJavacBuild extends BaseProject {
     }
 
     // ---------------------------------------------------------------- pipeline
+
+    /** All *.patch files in dir, in (alphabetical) filename order. */
+    private static List<Path> listPatches(Path dir) throws IOException {
+        if (Files.notExists(dir)) {
+            return List.of();
+        }
+        try (Stream<Path> s = Files.list(dir)) {
+            return s.filter(f -> f.getFileName().toString().endsWith(".patch"))
+                    .sorted(Comparator.comparing(f -> f.getFileName().toString()))
+                    .toList();
+        }
+    }
+
+    /**
+     * Apply one git patch to the pinned JDK. Unlike the generic {@link #exec},
+     * this captures git's own output so a failure names the patch and shows
+     * exactly which file/hunk git rejected.
+     */
+    private void applyPatch(Path patch) throws IOException {
+        String rel = root.relativize(patch).toString();
+        ProcessBuilder pb = new ProcessBuilder("git", "apply", patch.toString())
+                .directory(jdk.toFile())
+                .redirectErrorStream(true);
+        try {
+            Process p = pb.start();
+            byte[] out = p.getInputStream().readAllBytes();
+            int code = p.waitFor();
+            if (code != 0) {
+                throw new IOException("Failed to apply patch '" + rel
+                        + "' to the pinned JDK sources. git said:\n"
+                        + new String(out, UTF_8));
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while applying patch '" + rel + "'", e);
+        }
+    }
 
     private void downloadTools() throws Exception {
         download("https://repo1.maven.org/maven2/org/apache/netbeans/modules/jackpot30/tool/28.0/tool-28.0.jar", lib.resolve("jackpot.jar"));
@@ -320,7 +357,7 @@ public class NBJavacBuild extends BaseProject {
                 jdkSrc.resolve("java.compiler/share/classes"),
                 jdkSrc.resolve("jdk.compiler/share/classes"));
         // Compiled with the pinned javac at --release 21: the patched
-        // sources (patches/jdk-src-release-21.patch) are release-21 clean.
+        // sources (patches/*.patch) are release-21 clean.
         List<String> cmd = new ArrayList<>(List.of(
                 builtTool("javac"),
                 "-g",
@@ -395,8 +432,7 @@ public class NBJavacBuild extends BaseProject {
         checksums();
     }
 
-    /** -sources.jar: everything we compile (wrappers, the Jackpot-processed
-     * compiler sources, the langtools generator sources) plus the README. */
+    /** -sources.jar: every source we compile, plus the README and LICENSE. */
     private void buildSourcesJar() throws Exception {
         try (JarOutputStream z = new JarOutputStream(Files.newOutputStream(sourcesJar()))) {
             writeManifest(z);

@@ -15,7 +15,8 @@ overview.
   wrapper classes (`nbjavac/VMWrapper.java`, `JmodFileWrapper.java`).
 - `jdk-src/` is *generated*: the Jackpot-processed compiler sources
   (git-ignored). Never hand-edit it — changes to the compiler source go into
-  the Jackpot hint file or `patches/jdk-src-release-21.patch`.
+  the Jackpot hint file first; the git patches in `patches/` are the last
+  resort for what Jackpot cannot express.
 - `test/` is the backported javac test suite. `nbjavac/NBJavacBuild.java`
   is the entire build (rife bld).
 - `lib/*` jars are fetched by the build; only the bld wrapper is tracked.
@@ -49,10 +50,10 @@ under `jdk/build/*/images/jdk`, so a rerun of `./bld jdk` is a no-op on a hit.
 ## Pins and the CI cache
 
 `jdk.properties` pins the JDK. The CI cache key for the JDK build is the hash
-of three files: `jdk.properties`, `patches/jdk-src-release-21.patch`, and
-`src/META-INF/upgrade/nbjavac.hint`. Changing any of them invalidates the
-cached build — a CI miss means a full JDK rebuild, so don't edit these
-casually (e.g. to fix whitespace).
+of `jdk.properties`, **every file in `patches/`**, and
+`src/META-INF/upgrade/nbjavac.hint`. Changing any of them (adding, editing or
+removing a patch) invalidates the cached build — a CI miss means a full JDK
+rebuild, so don't edit these casually (e.g. to fix whitespace).
 
 ## CI — `.github/workflows/main.yml`
 
@@ -68,5 +69,15 @@ One workflow, two jobs:
 
 - The human does all committing; leave changes uncommitted.
 - Short commit messages.
-- `patches/` holds temporary git patches; keep their context in sync when the
-  JDK target changes.
+- `patches/` holds the git patches applied to the pinned sources — one by
+  one, in filename order. Each file is named
+  `<order>-jdk<N>-<category>.patch`: `<order>` is a numeric sort prefix
+  (`0-...`, `1-...`), `jdk<N>` is the backport lower bound at which the patch
+  stops being needed (delete it once the lower bound reaches `N`), and
+  `<category>` is a short snake_case name (e.g. `0-jdk25-unnamed_vars.patch`).
+  The set can grow or shrink without build changes; only the CI cache key sees
+  it. Keep their context in sync when the JDK target changes.
+- To change compiler source, prefer the Jackpot hint
+  (`src/META-INF/upgrade/nbjavac.hint`): it is checked in, runs on every
+  build, and needs no patch bookkeeping. A git patch in `patches/` is a
+  last resort, for the changes Jackpot cannot express.
