@@ -19,7 +19,7 @@ jobs:
 
       # Host JDK for bld and boot JDK for the pinned JDK build
       - name: Set up JDK 27
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
             distribution: 'zulu'
             java-version: 27
@@ -71,7 +71,7 @@ jobs:
 
       # tests
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
             distribution: 'zulu'
             java-version: 21
@@ -80,7 +80,7 @@ jobs:
         run: ./bld test
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
             distribution: 'zulu'
             java-version: 25
@@ -89,7 +89,7 @@ jobs:
         run: ./bld test
 
       - name: Set up JDK 28
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
             distribution: 'zulu'
             java-version: 28-ea
@@ -115,7 +115,7 @@ jobs:
 
       # Host JDK for bld and boot JDK for the pinned JDK build
       - name: Set up JDK 27
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
             distribution: 'temurin'
             java-version: 27
@@ -147,7 +147,7 @@ jobs:
             git checkout release310
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
             distribution: 'temurin'
             java-version: 21
