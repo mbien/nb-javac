@@ -29,6 +29,9 @@ import com.sun.source.util.JavacTask;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.List;
+import javax.tools.Diagnostic;
+import javax.tools.DiagnosticCollector;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -62,6 +65,47 @@ public class ReleaseTest extends TestCase {
         JavacTask ct = (JavacTask)tool.getTask(null, null, null, Arrays.asList("--release",  "9"), null, Arrays.asList(new MyFileObject(code)));
 
         ct.analyze();
+    }
+
+    // ct.sym tripwire test, if this fails, something is likely wrong with the ct.sym
+
+    // Tied to the pinned JDK (jdk.properties): the ceiling is the highest
+    // release the embedded ct.sym supports. When the pin moves, update the
+    // releases and keep the probe source referencing an API that only
+    // exists at the ceiling.
+    private static final String RELEASE_CEILING = "28";
+    private static final String RELEASE_BELOW_CEILING = "27";
+    private static final String RELEASE_FLOOR = "21";
+
+    // not in runtime JDK -> must be in ct.sym
+    private static final String CEILING_SOURCE =
+            "public class Test { java.lang.Character.UnicodeBlock b = "
+            + "java.lang.Character.UnicodeBlock.MUSICAL_SYMBOLS_SUPPLEMENT; }";
+
+    public void testReleaseAtCeiling() throws IOException {
+        List<Diagnostic<? extends JavaFileObject>> errors = compile(CEILING_SOURCE, "--release", RELEASE_CEILING);
+        assertTrue(errors.toString(), errors.isEmpty());
+    }
+
+    public void testReleaseBelowCeilingHidesCeilingApi() throws IOException {
+        List<Diagnostic<? extends JavaFileObject>> errors = compile(CEILING_SOURCE, "--release", RELEASE_BELOW_CEILING);
+        assertFalse(errors.toString(), errors.isEmpty());
+    }
+
+    public void testReleaseAtFloor() throws IOException {
+        List<Diagnostic<? extends JavaFileObject>> errors = compile("public class Test {}", "--release", RELEASE_FLOOR);
+        assertTrue(errors.toString(), errors.isEmpty());
+    }
+
+    private static List<Diagnostic<? extends JavaFileObject>> compile(String code, String... args) throws IOException {
+        JavaCompiler tool = ToolProvider.getSystemJavaCompiler();
+        assertNotNull(tool);
+        DiagnosticCollector<JavaFileObject> diags = new DiagnosticCollector<>();
+        JavacTask ct = (JavacTask) tool.getTask(null, null, diags, Arrays.asList(args), null, Arrays.asList(new MyFileObject(code)));
+        ct.analyze();
+        return diags.getDiagnostics().stream()
+                .filter(d -> d.getKind() == Diagnostic.Kind.ERROR)
+                .toList();
     }
 
 }
